@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Organizador de Ideias</title>
+<meta name="description" content="Organize ideias com anotações, imagens, fluxogramas, workflows e checklists.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+<body>
+<div class="app" id="app">
+  <aside class="side" aria-label="Lista de ideias">
+    <div class="side-top">
+      <div class="brand"><b>Organizador de Ideias<span>.</span></b></div>
+      <button class="btn-new" id="newBtn"><span class="dot"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Nova ideia</button>
+      <label class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Buscar ideias" aria-label="Buscar ideias"></label>
+    </div>
+    <div class="side-label">Recentes</div>
+    <nav class="list" id="list"></nav>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+  <main class="main" id="main"></main>
+</div>
+
+<div class="toast" id="toast" role="status"><span id="toastText">Bloco removido</span><button id="toastUndo">Desfazer</button></div>
+<input type="file" id="filePick" accept="image/*" hidden>
+<div class="modal-bg" id="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="modal">
+    <h2 id="mTitle">Apagar esta ideia?</h2>
+    <p id="mText">A ideia e todos os blocos dela serão removidos. Isso não pode ser desfeito.</p>
+    <div class="modal-actions">
+      <button class="btn-sec" id="mCancel">Cancelar</button>
+      <button class="btn-danger" id="mOk">Apagar</button>
+    </div>
+  </div>
+</div>
+
+
+<script src="src/app.js"></script>
+</body>
+</html>
