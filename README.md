@@ -24,6 +24,12 @@ Na página da versão mais recente, baixe o arquivo `app-debug.apk`. No Android,
 - Layout responsivo e suporte a navegação por teclado;
 - Funciona como aplicativo Android usando Capacitor, com a mesma interface do site.
 
+## Sobre
+
+O aplicativo usa uma identidade visual em fundo preto com uma lâmpada dourada acesa, representando ideias que ganham forma. A seção **Sobre o aplicativo**, disponível no menu lateral, apresenta a plataforma, o criador e o link para o código-fonte.
+
+O projeto é mantido por [Marcos Dev](https://github.com/marcos-scox) e está disponível no [GitHub](https://github.com/marcos-scox/organizador-de-ideias). A plataforma é uma aplicação web empacotada para Android com Capacitor, com armazenamento local e sem exigir conta para uso básico.
+
 ## Como usar
 
 ### No Android

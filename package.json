@@ -4,7 +4,7 @@
   "private": true,
   "description": "Aplicativo para capturar e organizar ideias.",
   "scripts": {
-    "prepare:web": "rm -rf www && mkdir -p www/src && cp index.html www/index.html && cp src/* www/src/",
+    "prepare:web": "rm -rf www && mkdir -p www/src www/assets && cp index.html www/index.html && cp src/* www/src/ && cp assets/logo-lampada.png www/assets/logo-lampada.png",
     "android:add": "npm run prepare:web && cap add android",
     "android:sync": "npm run prepare:web && cap sync android",
     "android:open": "cap open android",

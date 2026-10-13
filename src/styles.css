@@ -23,9 +23,12 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stro
 .app{display:grid;grid-template-columns:272px minmax(0,1fr);height:100%}
 .side{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .side-top{padding:18px 14px 10px;display:flex;flex-direction:column;gap:12px}
-.brand{display:flex;align-items:center;justify-content:space-between;padding:0 6px}
+.brand{display:flex;align-items:center;gap:9px;padding:0 6px;color:var(--tx);text-align:left}
+.brand img{width:27px;height:27px;border-radius:8px;object-fit:cover;box-shadow:0 0 16px rgba(227,176,75,.18)}
 .brand b{font-weight:600;font-size:17px;letter-spacing:-.01em}
 .brand b span{color:var(--acc)}
+.about-link{align-self:flex-start;padding:3px 6px;color:var(--tx-3);font-size:12px;border-radius:5px}
+.about-link:hover{color:var(--acc-tx);background:var(--acc-soft)}
 .btn-new{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r);color:var(--tx);font-weight:500}
 .btn-new .dot{width:24px;height:24px;border-radius:50%;background:var(--acc);color:#1A1406;display:grid;place-items:center}
 .btn-new .dot svg{width:14px;height:14px;stroke-width:2.2}
@@ -162,6 +165,25 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stro
 .primary{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:var(--r);background:var(--acc);color:#1A1406;font-weight:600;font-size:14px}
 .primary:hover{filter:brightness(1.07)}
 
+.about-page{width:100%;max-width:860px;margin:0 auto;padding:34px 28px 100px}
+.about-hero{display:flex;align-items:center;gap:22px;padding:18px 0 34px;border-bottom:1px solid var(--line)}
+.about-logo{width:112px;height:112px;border-radius:28px;object-fit:cover;box-shadow:0 0 38px rgba(227,176,75,.18)}
+.eyebrow{display:block;color:var(--acc-tx);font-size:11px;font-weight:600;letter-spacing:.14em}
+.about-hero h1{margin:7px 0 5px;font-size:34px;letter-spacing:-.03em;line-height:1.1}
+.about-hero p{max-width:520px;color:var(--tx-2);margin:0;font-size:15px}
+.about-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:28px 0}
+.about-card{padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.about-icon{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:var(--acc-soft);color:var(--acc)}
+.about-icon svg{width:18px;height:18px}
+.about-card h2{font-size:15px;margin:16px 0 6px}
+.about-card p{font-size:13px;line-height:1.65;color:var(--tx-2);margin:0}
+.about-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:22px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.about-footer h2{font-size:21px;margin:5px 0 2px}
+.about-footer p{color:var(--tx-2);font-size:13px;margin:0}
+.github-link{display:inline-flex;align-items:center;gap:8px;padding:10px 13px;border:1px solid var(--line-2);border-radius:8px;color:var(--acc-tx);font-size:13px;white-space:nowrap}
+.github-link:hover{background:var(--acc-soft);border-color:rgba(227,176,75,.4)}
+.about-version{color:var(--tx-3);font-size:12px;margin:18px 0 0}
+
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .modal-bg.open{display:flex}
 .modal{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--line-2);border-radius:14px;padding:20px}
@@ -184,5 +206,11 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stro
   .title{font-size:28px}
   .block{margin:0 0 6px;padding:0}
   .block-tools{position:static;flex-direction:row;opacity:1;justify-content:flex-end;margin-bottom:2px}
+  .about-page{padding:22px 18px 80px}
+  .about-hero{align-items:flex-start;gap:15px}
+  .about-logo{width:76px;height:76px;border-radius:20px}
+  .about-hero h1{font-size:25px}
+  .about-grid{grid-template-columns:1fr;gap:8px;padding:20px 0}
+  .about-footer{align-items:flex-start;flex-direction:column}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}

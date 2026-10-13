@@ -27,6 +27,7 @@ const LS = 'ideias.v1';
 
 let ideas = {};
 let current = null;
+let view = 'ideas';
 let db = null;
 let assetsApi = null;
 const uploading = {};
@@ -149,6 +150,10 @@ listEl.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.class
 $('#q').addEventListener('input', renderList);
 $('#newBtn').addEventListener('click', newIdea);
 $('#scrim').addEventListener('click', () => app.classList.remove('nav'));
+document.addEventListener('click', e => {
+  const about = e.target.closest('[data-act="about"]');
+  if(about){ view = 'about'; app.classList.remove('nav'); renderMain(); }
+});
 
 let delTarget = null;
 function askDelete(id){
@@ -171,6 +176,24 @@ function fmt(ts){
 }
 
 function renderMain(){
+  if(view === 'about'){
+    main.innerHTML = `
+      <div class="topbar" id="topbar">
+        <button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button>
+        <button class="ghost" data-act="back">${ic('down')}Voltar para ideias</button>
+      </div>
+      <section class="about-page">
+        <div class="about-hero"><img src="assets/logo-lampada.png" alt="Lâmpada acesa" class="about-logo"><div><span class="eyebrow">SOBRE A PLATAFORMA</span><h1>Organizador de Ideias</h1><p>Um espaço simples para tirar ideias da cabeça e transformar pensamentos em planos visuais.</p></div></div>
+        <div class="about-grid">
+          <article class="about-card"><span class="about-icon">${ic('bulb')}</span><h2>Feito para pensar melhor</h2><p>Reúna anotações, imagens, fluxogramas, workflows e checklists em uma única ideia, sem perder o fio do que importa.</p></article>
+          <article class="about-card"><span class="about-icon">${ic('refresh')}</span><h2>Seus dados no seu dispositivo</h2><p>O aplicativo salva automaticamente suas ideias no armazenamento local. Não é necessário criar uma conta para começar.</p></article>
+          <article class="about-card"><span class="about-icon">${ic('work')}</span><h2>Plataforma aberta</h2><p>O projeto é desenvolvido com tecnologias web e empacotado para Android, mantendo o código disponível para a comunidade.</p></article>
+        </div>
+        <div class="about-footer"><div><span class="eyebrow">CRIADOR</span><h2>Marcos Dev</h2><p>Desenvolvido por <strong>Marcos Dev</strong> para organizar ideias com mais clareza.</p></div><a class="github-link" href="https://github.com/marcos-scox/organizador-de-ideias" target="_blank" rel="noopener">${ic('link')}Ver projeto no GitHub</a></div>
+        <p class="about-version">Organizador de Ideias · versão 1.0.1 · Licença MIT</p>
+      </section>`;
+    return;
+  }
   const it = current && ideas[current];
   if(!it){
     main.innerHTML = `
@@ -320,6 +343,8 @@ main.addEventListener('click', e => {
   const t = e.target.closest('button'); if(!t) return;
   const it = cur();
   if(t.dataset.act === 'menu'){ app.classList.add('nav'); return; }
+  if(t.dataset.act === 'about'){ view = 'about'; app.classList.remove('nav'); renderMain(); return; }
+  if(t.dataset.act === 'back'){ view = 'ideas'; renderMain(); return; }
   if(t.dataset.act === 'new'){ newIdea(); return; }
   if(!it) return;
   if(t.dataset.act === 'del'){ askDelete(it.id); return; }

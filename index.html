@@ -15,9 +15,10 @@
 <div class="app" id="app">
   <aside class="side" aria-label="Lista de ideias">
     <div class="side-top">
-      <div class="brand"><b>Organizador de Ideias<span>.</span></b></div>
+      <button class="brand" data-act="about" aria-label="Abrir Sobre"><img src="assets/logo-lampada.png" alt=""><b>Organizador de Ideias<span>.</span></b></button>
       <button class="btn-new" id="newBtn"><span class="dot"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>Nova ideia</button>
       <label class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" type="search" placeholder="Buscar ideias" aria-label="Buscar ideias"></label>
+      <button class="about-link" data-act="about">Sobre o aplicativo</button>
     </div>
     <div class="side-label">Recentes</div>
     <nav class="list" id="list"></nav>
