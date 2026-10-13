@@ -25,6 +25,8 @@ Na página da versão mais recente, baixe o arquivo `app-debug.apk`. No Android,
 - Funciona como aplicativo Android usando Capacitor, com a mesma interface do site.
 - Baixar qualquer ideia completa em PDF pelo botão **Baixar PDF**.
 
+No Android, o botão gera o PDF e abre a tela de compartilhamento do sistema, onde você pode escolher **Salvar em arquivos**, Google Drive ou outro aplicativo. No navegador, o arquivo é baixado diretamente.
+
 ## Sobre
 
 O aplicativo usa uma identidade visual em fundo preto com uma lâmpada dourada acesa, representando ideias que ganham forma. A seção **Sobre o aplicativo**, disponível no menu lateral, apresenta a plataforma, o criador e o link para o código-fonte.

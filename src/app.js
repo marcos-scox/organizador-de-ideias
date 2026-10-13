@@ -211,7 +211,7 @@ function renderMain(){
     <div class="topbar" id="topbar">
       <button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button><img class="topbar-logo" src="assets/logo-lampada.png" alt="Logo do Organizador de Ideias">
       <span class="save-state ok" id="saveState">Salvo</span>
-      <button class="ghost pdf" data-act="pdf">${ic('download')}Baixar PDF</button>
+      <button class="ghost pdf" data-act="pdf" title="Baixar ideia em PDF" aria-label="Baixar ideia em PDF">${ic('download')}Baixar PDF</button>
       <button class="ghost danger" data-act="del">${ic('trash')}Apagar ideia</button>
     </div>
     <div class="doc">
@@ -341,7 +341,7 @@ main.addEventListener('keydown', e => {
   if(t.hasAttribute('data-fc-label') && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
 });
 
-function downloadIdeaPdf(){
+async function downloadIdeaPdf(){
   const it = cur(), source = main.querySelector('.doc');
   if(!it || !source || typeof window.html2pdf !== 'function') return;
   const clean = String(it.titulo || 'ideia').trim().replace(/[^a-z0-9áéíóúãõçêà-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ideia';
@@ -368,7 +368,29 @@ function downloadIdeaPdf(){
   };
   const button = main.querySelector('[data-act="pdf"]');
   if(button) button.disabled = true;
-  window.html2pdf().set(options).from(holder).save().then(() => holder.remove()).catch(() => holder.remove()).finally(() => { if(button) button.disabled = false; });
+  try{
+    const dataUri = await window.html2pdf().set(options).from(holder).outputPdf('datauristring');
+    const blob = await fetch(dataUri).then(r => r.blob());
+    const file = new File([blob], options.filename, {type:'application/pdf'});
+    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({title:'Organizador de Ideias', text:'Ideia exportada em PDF', files:[file]});
+    } else {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = options.filename; link.rel = 'noopener';
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+    const toast = document.getElementById('toast');
+    if(toast){ document.getElementById('toastText').textContent = 'PDF gerado com sucesso'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2800); }
+  } catch(err){
+    console.error('Falha ao gerar PDF', err);
+    const toast = document.getElementById('toast');
+    if(toast){ document.getElementById('toastText').textContent = 'Não foi possível salvar o PDF'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3200); }
+  } finally {
+    holder.remove();
+    if(button) button.disabled = false;
+  }
 }
 
 main.addEventListener('click', e => {
