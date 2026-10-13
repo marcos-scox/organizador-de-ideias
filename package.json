@@ -1,6 +1,6 @@
 {
   "name": "organizador-de-ideias",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "private": true,
   "description": "Aplicativo para capturar e organizar ideias.",
   "scripts": {

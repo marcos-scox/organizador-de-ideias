@@ -191,7 +191,7 @@ function renderMain(){
           <article class="about-card"><span class="about-icon">${ic('work')}</span><h2>Plataforma aberta</h2><p>O projeto é desenvolvido com tecnologias web e empacotado para Android, mantendo o código disponível para a comunidade.</p></article>
         </div>
         <div class="about-footer"><div><span class="eyebrow">CRIADOR</span><h2>Marcos Dev</h2><p>Desenvolvido por <strong>Marcos Dev</strong> para organizar ideias com mais clareza.</p></div><a class="github-link" href="https://github.com/marcos-scox/organizador-de-ideias" target="_blank" rel="noopener">${ic('link')}Ver projeto no GitHub</a></div>
-        <p class="about-version">Organizador de Ideias · versão 1.0.1 · Licença MIT</p>
+        <p class="about-version">Organizador de Ideias · versão 1.0.9 · Licença MIT</p>
       </section>`;
     return;
   }
@@ -341,9 +341,53 @@ main.addEventListener('keydown', e => {
   if(t.hasAttribute('data-fc-label') && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
 });
 
+let pdfBusy = false;
+function waitFrame(){ return new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))); }
+function loadImage(img){
+  return new Promise(resolve => {
+    if(img.complete && img.naturalWidth) return resolve(true);
+    const done = ok => { img.removeEventListener('load', onload); img.removeEventListener('error', onerror); resolve(ok); };
+    const onload = () => done(true), onerror = () => done(false);
+    img.addEventListener('load', onload, {once:true}); img.addEventListener('error', onerror, {once:true});
+    setTimeout(() => done(!!img.naturalWidth), 5000);
+  });
+}
+async function preparePdfImages(root){
+  const images = [...root.querySelectorAll('img')];
+  for(const img of images){
+    const ok = await loadImage(img);
+    if(!ok || !img.naturalWidth){
+      const fallback = document.createElement('div');
+      fallback.className = 'pdf-image-fallback';
+      fallback.textContent = 'Imagem indisponível para exportação';
+      img.replaceWith(fallback);
+      continue;
+    }
+    try{
+      const max = 1400, scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      const ctx = canvas.getContext('2d', {alpha:false});
+      ctx.fillStyle = '#15171b'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      img.removeAttribute('crossorigin');
+      img.src = canvas.toDataURL('image/jpeg', 0.82);
+      img.width = canvas.width; img.height = canvas.height;
+    }catch(err){
+      const fallback = document.createElement('div');
+      fallback.className = 'pdf-image-fallback';
+      fallback.textContent = 'Imagem não pôde ser incorporada ao PDF';
+      img.replaceWith(fallback);
+    }
+    await waitFrame();
+  }
+}
+
 async function downloadIdeaPdf(){
   const it = cur(), source = main.querySelector('.doc');
-  if(!it || !source || typeof window.html2pdf !== 'function') return;
+  if(pdfBusy || !it || !source || typeof window.html2pdf !== 'function') return;
+  pdfBusy = true;
   const clean = String(it.titulo || 'ideia').trim().replace(/[^a-z0-9áéíóúãõçêà-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ideia';
   const clone = source.cloneNode(true);
   clone.classList.add('pdf-document');
@@ -369,12 +413,14 @@ async function downloadIdeaPdf(){
   const button = main.querySelector('[data-act="pdf"]');
   if(button) button.disabled = true;
   try{
+    await waitFrame();
+    await preparePdfImages(holder);
     // Gerar o PDF como Blob evita fetch(data:...), que não é suportado
     // de forma consistente por WebViews Android e alguns navegadores.
-    const blob = await window.html2pdf().set(options).from(holder).outputPdf('blob');
+    const blob = await window.html2pdf().set({...options, html2canvas: {...options.html2canvas, scale: 1, imageTimeout: 5000, allowTaint: false}}).from(holder).outputPdf('blob');
     if(!(blob instanceof Blob) || !blob.size) throw new Error('PDF vazio');
     const file = new File([blob], options.filename, {type:'application/pdf'});
-    if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
+    if(navigator.share && navigator.canShare && blob.size < 8 * 1024 * 1024 && navigator.canShare({files:[file]})){
       await navigator.share({title:'Organizador de Ideias', text:'Ideia exportada em PDF', files:[file]});
     } else {
       const url = URL.createObjectURL(blob);
@@ -392,6 +438,7 @@ async function downloadIdeaPdf(){
   } finally {
     holder.remove();
     if(button) button.disabled = false;
+    pdfBusy = false;
   }
 }
 
