@@ -179,7 +179,7 @@ function renderMain(){
   if(view === 'about'){
     main.innerHTML = `
       <div class="topbar" id="topbar">
-        <button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button>
+        <button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button><img class="topbar-logo" src="assets/logo-lampada.png" alt="Logo do Organizador de Ideias">
         <button class="ghost" data-act="back">${ic('down')}Voltar para ideias</button>
       </div>
       <section class="about-page">
@@ -197,7 +197,7 @@ function renderMain(){
   const it = current && ideas[current];
   if(!it){
     main.innerHTML = `
-      <div class="topbar"><button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button></div>
+      <div class="topbar"><button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button><img class="topbar-logo" src="assets/logo-lampada.png" alt="Logo do Organizador de Ideias"></div>
       <div class="empty"><div class="empty-in">
         <div class="bulb">${ic('bulb')}</div>
         <h1>Comece sua primeira ideia</h1>
@@ -208,7 +208,7 @@ function renderMain(){
   }
   main.innerHTML = `
     <div class="topbar" id="topbar">
-      <button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button>
+      <button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button><img class="topbar-logo" src="assets/logo-lampada.png" alt="Logo do Organizador de Ideias">
       <span class="save-state ok" id="saveState">Salvo</span>
       <button class="ghost danger" data-act="del">${ic('trash')}Apagar ideia</button>
     </div>
