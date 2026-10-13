@@ -369,8 +369,10 @@ async function downloadIdeaPdf(){
   const button = main.querySelector('[data-act="pdf"]');
   if(button) button.disabled = true;
   try{
-    const dataUri = await window.html2pdf().set(options).from(holder).outputPdf('datauristring');
-    const blob = await fetch(dataUri).then(r => r.blob());
+    // Gerar o PDF como Blob evita fetch(data:...), que não é suportado
+    // de forma consistente por WebViews Android e alguns navegadores.
+    const blob = await window.html2pdf().set(options).from(holder).outputPdf('blob');
+    if(!(blob instanceof Blob) || !blob.size) throw new Error('PDF vazio');
     const file = new File([blob], options.filename, {type:'application/pdf'});
     if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
       await navigator.share({title:'Organizador de Ideias', text:'Ideia exportada em PDF', files:[file]});
