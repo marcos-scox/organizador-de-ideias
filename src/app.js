@@ -18,6 +18,7 @@ const I = {
   pill:'<rect x="3" y="8" width="18" height="8" rx="4"/>',
   link:'<path d="M5 12h11M13 8l4 4-4 4"/>',
   img:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5-5 4 4 3-3 4 4"/>'
+  ,download:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>'
 };
 const ic = (n,c='i') => `<svg class="${c}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
@@ -210,6 +211,7 @@ function renderMain(){
     <div class="topbar" id="topbar">
       <button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button><img class="topbar-logo" src="assets/logo-lampada.png" alt="Logo do Organizador de Ideias">
       <span class="save-state ok" id="saveState">Salvo</span>
+      <button class="ghost pdf" data-act="pdf">${ic('download')}Baixar PDF</button>
       <button class="ghost danger" data-act="del">${ic('trash')}Apagar ideia</button>
     </div>
     <div class="doc">
@@ -339,12 +341,43 @@ main.addEventListener('keydown', e => {
   if(t.hasAttribute('data-fc-label') && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
 });
 
+function downloadIdeaPdf(){
+  const it = cur(), source = main.querySelector('.doc');
+  if(!it || !source || typeof window.html2pdf !== 'function') return;
+  const clean = String(it.titulo || 'ideia').trim().replace(/[^a-z0-9áéíóúãõçêà-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ideia';
+  const clone = source.cloneNode(true);
+  clone.classList.add('pdf-document');
+  clone.querySelectorAll('.block-tools,.adder,.fc-bar,.head-x,.mini,.add-row').forEach(el => el.remove());
+  clone.querySelectorAll('textarea,input').forEach(el => {
+    const value = el.value || el.getAttribute('placeholder') || '';
+    const replacement = document.createElement('div');
+    replacement.className = 'pdf-value';
+    replacement.textContent = value;
+    el.replaceWith(replacement);
+  });
+  const holder = document.createElement('div');
+  holder.className = 'pdf-export';
+  holder.appendChild(clone);
+  document.body.appendChild(holder);
+  const options = {
+    margin: [10, 10, 10, 10],
+    filename: `organizador-de-ideias-${clean}.pdf`,
+    image: {type: 'jpeg', quality: 0.96},
+    html2canvas: {scale: 2, backgroundColor: '#0E0F11', useCORS: true, logging: false},
+    jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}
+  };
+  const button = main.querySelector('[data-act="pdf"]');
+  if(button) button.disabled = true;
+  window.html2pdf().set(options).from(holder).save().then(() => holder.remove()).catch(() => holder.remove()).finally(() => { if(button) button.disabled = false; });
+}
+
 main.addEventListener('click', e => {
   const t = e.target.closest('button'); if(!t) return;
   const it = cur();
   if(t.dataset.act === 'menu'){ app.classList.add('nav'); return; }
   if(t.dataset.act === 'about'){ view = 'about'; app.classList.remove('nav'); renderMain(); return; }
   if(t.dataset.act === 'back'){ view = 'ideas'; renderMain(); return; }
+  if(t.dataset.act === 'pdf'){ downloadIdeaPdf(); return; }
   if(t.dataset.act === 'new'){ newIdea(); return; }
   if(!it) return;
   if(t.dataset.act === 'del'){ askDelete(it.id); return; }

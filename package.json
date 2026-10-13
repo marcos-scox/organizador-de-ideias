@@ -4,7 +4,7 @@
   "private": true,
   "description": "Aplicativo para capturar e organizar ideias.",
   "scripts": {
-    "prepare:web": "rm -rf www && mkdir -p www/src www/assets && cp index.html www/index.html && cp src/* www/src/ && cp assets/logo-lampada.png www/assets/logo-lampada.png",
+    "prepare:web": "rm -rf www && mkdir -p www/src www/assets www/vendor && cp index.html www/index.html && cp src/* www/src/ && cp assets/logo-lampada.png www/assets/logo-lampada.png && cp node_modules/html2pdf.js/dist/html2pdf.bundle.min.js www/vendor/html2pdf.bundle.min.js",
     "android:add": "npm run prepare:web && cap add android",
     "android:sync": "npm run prepare:web && cap sync android",
     "android:open": "cap open android",
@@ -16,6 +16,7 @@
     "@capacitor/core": "^7.4.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "^7.4.3"
+    "@capacitor/cli": "^7.4.3",
+    "html2pdf.js": "^0.10.2"
   }
 }

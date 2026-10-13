@@ -23,6 +23,7 @@ Na página da versão mais recente, baixe o arquivo `app-debug.apk`. No Android,
 - Salvar automaticamente os dados no armazenamento local do aplicativo;
 - Layout responsivo e suporte a navegação por teclado;
 - Funciona como aplicativo Android usando Capacitor, com a mesma interface do site.
+- Baixar qualquer ideia completa em PDF pelo botão **Baixar PDF**.
 
 ## Sobre
 
