@@ -1,11 +1,16 @@
 # Organizador de Ideias
 
-Aplicação web para capturar, desenvolver e organizar ideias em um só lugar. Cada ideia pode reunir anotações, imagens, fluxogramas, workflows e checklists, com uma interface responsiva para desktop e celular.
+Aplicativo para capturar, desenvolver e organizar ideias em um só lugar. Cada ideia pode reunir anotações, imagens, fluxogramas, workflows e checklists, com uma interface responsiva para celular e desktop.
 
-## Acesso online
+## Baixar o aplicativo Android
 
-- **Site:** https://marcos-scox.github.io/organizador-de-ideias/
-- **Repositório:** https://github.com/marcos-scox/organizador-de-ideias
+- **APK mais recente:** [Baixar o Organizador de Ideias para Android](https://github.com/marcos-scox/organizador-de-ideias/releases/latest)
+- **Código-fonte:** https://github.com/marcos-scox/organizador-de-ideias
+- **Site online:** https://marcos-scox.github.io/organizador-de-ideias/
+
+Na página da versão mais recente, baixe o arquivo `app-debug.apk`. No Android, autorize a instalação de aplicativos baixados da fonte escolhida e abra o APK para instalar.
+
+> O APK é gerado automaticamente pelo GitHub Actions a cada versão marcada no formato `v1.0.0`. Também é possível baixar o APK gerado na aba **Actions**, em **Artifacts**, para cada execução manual.
 
 ## Funcionalidades
 
@@ -15,10 +20,19 @@ Aplicação web para capturar, desenvolver e organizar ideias em um só lugar. C
 - Criar fluxogramas com etapas, decisões, conexões e movimentação dos nós;
 - Montar workflows com status pendente, em andamento e feito;
 - Criar checklists com acompanhamento de itens concluídos;
-- Salvar automaticamente os dados no `localStorage` do navegador;
-- Layout responsivo e suporte a navegação por teclado.
+- Salvar automaticamente os dados no armazenamento local do aplicativo;
+- Layout responsivo e suporte a navegação por teclado;
+- Funciona como aplicativo Android usando Capacitor, com a mesma interface do site.
 
 ## Como usar
+
+### No Android
+
+1. Baixe o [APK mais recente](https://github.com/marcos-scox/organizador-de-ideias/releases/latest).
+2. Instale o aplicativo no celular.
+3. Toque em **Nova ideia**.
+4. Dê um nome à ideia e escreva o conteúdo.
+5. Use os botões no final da página para adicionar texto, fluxograma, workflow, checklist ou imagem.
 
 ### Usando o site publicado
 
@@ -26,13 +40,12 @@ Aplicação web para capturar, desenvolver e organizar ideias em um só lugar. C
 2. Clique em **Nova ideia**.
 3. Dê um nome à ideia e escreva o conteúdo.
 4. Use os botões no final da página para adicionar texto, fluxograma, workflow, checklist ou imagem.
-5. As alterações são salvas automaticamente neste navegador.
 
-> Os dados são armazenados localmente no navegador. Se você limpar os dados do site ou trocar de navegador/dispositivo, as ideias não serão transferidas automaticamente.
+> Os dados são armazenados localmente no aplicativo ou navegador. Se os dados forem apagados ou você trocar de dispositivo, as ideias não serão transferidas automaticamente.
 
 ### Executando localmente
 
-Não é necessário instalar dependências. Basta abrir `index.html` no navegador. Para evitar limitações de alguns navegadores com arquivos locais, você também pode iniciar um servidor simples:
+Para abrir o site sem instalar dependências:
 
 ```bash
 python3 -m http.server 8000
@@ -40,23 +53,36 @@ python3 -m http.server 8000
 
 Depois, abra <http://localhost:8000>.
 
+Para preparar o projeto Android, é necessário Node.js, Java 21 e Android SDK:
+
+```bash
+npm ci
+npm run android:sync
+npm run android:build
+```
+
+O APK será gerado em `android/app/build/outputs/apk/debug/app-debug.apk`.
+
 ## Estrutura do projeto
 
 ```text
 organizador-de-ideias/
-├── index.html                 # Página principal da aplicação
+├── index.html                 # Interface principal
 ├── src/
 │   ├── app.js                 # Estado, renderização e interações
 │   └── styles.css             # Estilos e layout responsivo
-├── .github/
-│   └── workflows/
-│       └── deploy-pages.yml   # Publicação automática no GitHub Pages
+├── android/                   # Projeto nativo Android gerado pelo Capacitor
+├── capacitor.config.json      # Identidade e configuração do aplicativo
+├── package.json               # Scripts e dependências Android
+├── .github/workflows/
+│   ├── deploy-pages.yml       # Publicação automática do site
+│   └── android.yml            # Build e Release do APK
 └── README.md                  # Documentação do projeto
 ```
 
 ## Publicação
 
-O projeto é estático e é publicado automaticamente pelo GitHub Actions sempre que há um push na branch `main`. O workflow usa o sistema oficial de deploy do GitHub Pages.
+O site é publicado automaticamente no GitHub Pages sempre que há um push na branch `main`. O APK é gerado no GitHub Actions a cada tag de versão, como `v1.0.0`, e anexado automaticamente à Release correspondente.
 
 ## Criador
 
@@ -64,4 +90,4 @@ Criado por **Marcos Dev** ([marcos-scox](https://github.com/marcos-scox)).
 
 ## Licença
 
-Este projeto está disponível sob a licença MIT. Consulte o arquivo `LICENSE` para mais detalhes.
+Este projeto está disponível sob a licença MIT. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.

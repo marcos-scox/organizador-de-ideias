@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Organizador de Ideias</string>
+    <string name="title_activity_main">Organizador de Ideias</string>
+    <string name="package_name">com.marcosdev.organizadordeideias</string>
+    <string name="custom_url_scheme">com.marcosdev.organizadordeideias</string>
+</resources>

@@ -1,0 +1,9 @@
+{
+  "appId": "com.marcosdev.organizadordeideias",
+  "appName": "Organizador de Ideias",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "backgroundColor": "#0E0F11"
+  }
+}
