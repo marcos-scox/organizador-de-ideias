@@ -18,7 +18,6 @@ const I = {
   pill:'<rect x="3" y="8" width="18" height="8" rx="4"/>',
   link:'<path d="M5 12h11M13 8l4 4-4 4"/>',
   img:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5-5 4 4 3-3 4 4"/>'
-  ,download:'<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>'
 };
 const ic = (n,c='i') => `<svg class="${c}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
@@ -191,7 +190,7 @@ function renderMain(){
           <article class="about-card"><span class="about-icon">${ic('work')}</span><h2>Plataforma aberta</h2><p>O projeto é desenvolvido com tecnologias web e empacotado para Android, mantendo o código disponível para a comunidade.</p></article>
         </div>
         <div class="about-footer"><div><span class="eyebrow">CRIADOR</span><h2>Marcos Dev</h2><p>Desenvolvido por <strong>Marcos Dev</strong> para organizar ideias com mais clareza.</p></div><a class="github-link" href="https://github.com/marcos-scox/organizador-de-ideias" target="_blank" rel="noopener">${ic('link')}Ver projeto no GitHub</a></div>
-        <p class="about-version">Organizador de Ideias · versão 1.2.2 · Licença MIT</p>
+        <p class="about-version">Organizador de Ideias · versão 1.3.0 · Licença MIT</p>
       </section>`;
     return;
   }
@@ -211,7 +210,6 @@ function renderMain(){
     <div class="topbar" id="topbar">
       <button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button><img class="topbar-logo" src="assets/logo-lampada.png" alt="Logo do Organizador de Ideias">
       <span class="save-state ok" id="saveState">Salvo</span>
-      <button class="ghost pdf" data-act="pdf" title="Baixar ideia em PDF" aria-label="Baixar ideia em PDF">${ic('download')}Baixar PDF</button>
       <button class="ghost danger" data-act="del">${ic('trash')}Apagar ideia</button>
     </div>
     <div class="doc">
@@ -341,170 +339,12 @@ main.addEventListener('keydown', e => {
   if(t.hasAttribute('data-fc-label') && e.key === 'Enter'){ e.preventDefault(); t.blur(); }
 });
 
-let pdfBusy = false;
-function waitFrame(){ return new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))); }
-function loadImage(img){
-  return new Promise(resolve => {
-    if(img.complete && img.naturalWidth) return resolve(true);
-    const done = ok => { img.removeEventListener('load', onload); img.removeEventListener('error', onerror); resolve(ok); };
-    const onload = () => done(true), onerror = () => done(false);
-    img.addEventListener('load', onload, {once:true}); img.addEventListener('error', onerror, {once:true});
-    setTimeout(() => done(!!img.naturalWidth), 5000);
-  });
-}
-async function preparePdfImages(root){
-  const images = [...root.querySelectorAll('img')];
-  for(const img of images){
-    const ok = await loadImage(img);
-    if(!ok || !img.naturalWidth){
-      const fallback = document.createElement('div');
-      fallback.className = 'pdf-image-fallback';
-      fallback.textContent = 'Imagem indisponível para exportação';
-      img.replaceWith(fallback);
-      continue;
-    }
-    try{
-      const max = 1400, scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-      const ctx = canvas.getContext('2d', {alpha:false});
-      ctx.fillStyle = '#15171b'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      img.removeAttribute('crossorigin');
-      img.src = canvas.toDataURL('image/jpeg', 0.82);
-      img.width = canvas.width; img.height = canvas.height;
-    }catch(err){
-      const fallback = document.createElement('div');
-      fallback.className = 'pdf-image-fallback';
-      fallback.textContent = 'Imagem não pôde ser incorporada ao PDF';
-      img.replaceWith(fallback);
-    }
-    await waitFrame();
-  }
-}
-function nativePdfSaver(){
-  return window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PdfSaver;
-}
-function blobToBase64(blob){
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-}
-async function choosePdfDestination(filename){
-  const native = nativePdfSaver();
-  if(native && typeof native.pickDirectory === 'function'){
-    const result = await native.pickDirectory({filename});
-    return {kind:'native', uri:result.uri};
-  }
-  if(typeof window.showDirectoryPicker === 'function'){
-    return {kind:'directory', handle: await window.showDirectoryPicker({mode:'readwrite'})};
-  }
-  if(typeof window.showSaveFilePicker === 'function'){
-    return {kind:'file', handle: await window.showSaveFilePicker({
-      suggestedName: filename,
-      types: [{description:'Documento PDF', accept:{'application/pdf':['.pdf']}}]
-    })};
-  }
-  return null;
-}
-async function savePdfToDestination(blob, filename, destination){
-  if(!destination) return false;
-  if(destination.kind === 'native'){
-    const native = nativePdfSaver();
-    await native.savePdf({directoryUri:destination.uri, filename, base64:await blobToBase64(blob)});
-    return true;
-  }
-  if(destination.kind === 'file'){
-    const writable = await destination.handle.createWritable();
-    await writable.write(blob); await writable.close();
-  } else {
-    const file = await destination.handle.getFileHandle(filename, {create:true});
-    const writable = await file.createWritable();
-    await writable.write(blob); await writable.close();
-  }
-  return true;
-}
-
-async function downloadIdeaPdf(){
-  const it = cur(), source = main.querySelector('.doc');
-  if(pdfBusy || !it || !source || typeof window.html2pdf !== 'function') return;
-  pdfBusy = true;
-  const clean = String(it.titulo || 'ideia').trim().replace(/[^a-z0-9áéíóúãõçêà-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ideia';
-  const filename = `organizador-de-ideias-${clean}.pdf`;
-  let destination = null;
-  try { destination = await choosePdfDestination(filename); }
-  catch(err){
-    pdfBusy = false;
-    const toast = document.getElementById('toast');
-    if(toast){ document.getElementById('toastText').textContent = 'Escolha uma pasta para salvar o PDF'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3200); }
-    return;
-  }
-  const clone = source.cloneNode(true);
-  clone.classList.add('pdf-document');
-  clone.querySelectorAll('.block-tools,.adder,.fc-bar,.head-x,.mini,.add-row').forEach(el => el.remove());
-  clone.querySelectorAll('textarea,input').forEach(el => {
-    const value = el.value || el.getAttribute('placeholder') || '';
-    const replacement = document.createElement('div');
-    replacement.className = 'pdf-value';
-    replacement.textContent = value;
-    el.replaceWith(replacement);
-  });
-  const holder = document.createElement('div');
-  holder.className = 'pdf-export';
-  holder.appendChild(clone);
-  document.body.appendChild(holder);
-  const options = {
-    margin: [10, 10, 10, 10],
-    filename,
-    image: {type: 'jpeg', quality: 0.96},
-    html2canvas: {scale: 2, backgroundColor: '#0E0F11', useCORS: true, logging: false},
-    jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}
-  };
-  const button = main.querySelector('[data-act="pdf"]');
-  if(button) button.disabled = true;
-  try{
-    await waitFrame();
-    await preparePdfImages(holder);
-    // Gerar o PDF como Blob evita fetch(data:...), que não é suportado
-    // de forma consistente por WebViews Android e alguns navegadores.
-    const blob = await window.html2pdf().set({...options, html2canvas: {...options.html2canvas, scale: 1, imageTimeout: 5000, allowTaint: false}}).from(holder).outputPdf('blob');
-    if(!(blob instanceof Blob) || !blob.size) throw new Error('PDF vazio');
-    const file = new File([blob], options.filename, {type:'application/pdf'});
-    if(await savePdfToDestination(blob, options.filename, destination)){
-      // O arquivo já foi gravado pelo seletor de destino.
-    } else if(navigator.share && navigator.canShare && blob.size < 8 * 1024 * 1024 && navigator.canShare({files:[file]})){
-      await navigator.share({title:'Organizador de Ideias', text:'Ideia exportada em PDF', files:[file]});
-    } else {
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url; link.download = options.filename; link.rel = 'noopener';
-      document.body.appendChild(link); link.click(); link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1500);
-    }
-    const toast = document.getElementById('toast');
-    if(toast){ document.getElementById('toastText').textContent = 'PDF gerado com sucesso'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2800); }
-  } catch(err){
-    console.error('Falha ao gerar PDF', err);
-    const toast = document.getElementById('toast');
-    if(toast){ document.getElementById('toastText').textContent = 'Não foi possível salvar o PDF'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3200); }
-  } finally {
-    holder.remove();
-    if(button) button.disabled = false;
-    pdfBusy = false;
-  }
-}
-
 main.addEventListener('click', e => {
   const t = e.target.closest('button'); if(!t) return;
   const it = cur();
   if(t.dataset.act === 'menu'){ app.classList.add('nav'); return; }
   if(t.dataset.act === 'about'){ view = 'about'; app.classList.remove('nav'); renderMain(); return; }
   if(t.dataset.act === 'back'){ view = 'ideas'; renderMain(); return; }
-  if(t.dataset.act === 'pdf'){ downloadIdeaPdf(); return; }
   if(t.dataset.act === 'new'){ newIdea(); return; }
   if(!it) return;
   if(t.dataset.act === 'del'){ askDelete(it.id); return; }

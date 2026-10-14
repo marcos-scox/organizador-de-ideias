@@ -4,7 +4,6 @@ Aplicativo para capturar, desenvolver e organizar ideias em um só lugar. Cada i
 
 ## Baixar o aplicativo Android
 
-- **APK mais recente:** [Baixar o Organizador de Ideias para Android](https://github.com/marcos-scox/organizador-de-ideias/releases/latest)
 - **Código-fonte:** https://github.com/marcos-scox/organizador-de-ideias
 - **Site online:** https://marcos-scox.github.io/organizador-de-ideias/
 
@@ -23,9 +22,7 @@ Na página da versão mais recente, baixe o arquivo `app-debug.apk`. No Android,
 - Salvar automaticamente os dados no armazenamento local do aplicativo;
 - Layout responsivo e suporte a navegação por teclado;
 - Funciona como aplicativo Android usando Capacitor, com a mesma interface do site.
-- Baixar qualquer ideia completa em PDF pelo botão **Baixar PDF**.
 
-No Android, o botão gera o PDF e abre a tela de compartilhamento do sistema, onde você pode escolher **Salvar em arquivos**, Google Drive ou outro aplicativo. No navegador, o arquivo é baixado diretamente.
 
 ## Sobre
 

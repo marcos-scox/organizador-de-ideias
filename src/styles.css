@@ -184,14 +184,6 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stro
 .github-link{display:inline-flex;align-items:center;gap:8px;padding:10px 13px;border:1px solid var(--line-2);border-radius:8px;color:var(--acc-tx);font-size:13px;white-space:nowrap}
 .github-link:hover{background:var(--acc-soft);border-color:rgba(227,176,75,.4)}
 .about-version{color:var(--tx-3);font-size:12px;margin:18px 0 0}
-.pdf-export{position:fixed;left:-2000px;top:0;width:794px;background:var(--bg);z-index:-1;padding:30px;color:var(--tx)}
-.pdf-export .doc{max-width:none;padding:0;width:100%}
-.pdf-export .title{font-size:32px}
-.pdf-export .block{margin:0 0 10px;padding:0}
-.pdf-export .block-tools,.pdf-export .adder,.pdf-export .fc-bar,.pdf-export .head-x,.pdf-export .mini,.pdf-export .add-row{display:none!important}
-.pdf-export .txt,.pdf-export input,.pdf-export textarea{display:block;min-height:28px;white-space:pre-wrap}
-.pdf-export .pdf-value{white-space:pre-wrap;color:var(--tx);font-size:16px;line-height:1.7;padding:4px 0}
-.pdf-export .card{break-inside:avoid}
 
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .modal-bg.open{display:flex}
@@ -215,8 +207,6 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stro
   .topbar-logo{width:32px;height:32px;border-radius:9px}
   .topbar .ghost.danger{font-size:0;padding:7px;margin-left:4px}
   .topbar .ghost.danger svg{width:20px;height:20px}
-  .topbar .ghost.pdf{font-size:0;padding:7px;margin-left:auto}
-  .topbar .ghost.pdf svg{width:20px;height:20px}
   .doc{width:100%;max-width:none;padding:30px 16px 110px}
   .title{display:block;font-size:31px;line-height:1.18;min-height:40px;margin:0}
   .meta{font-size:13px;margin:9px 0 25px}
