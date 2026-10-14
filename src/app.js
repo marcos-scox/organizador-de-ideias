@@ -33,12 +33,13 @@ let assetsApi = null;
 const uploading = {};
 const MAXLIST = 30;
 const pendingSync = new Set();
+const pendingDelete = new Set();
 const timers = {};
 const $ = s => document.querySelector(s);
 const app = $('#app'), main = $('#main'), listEl = $('#list');
 
 function lsRead(){ try{ return JSON.parse(localStorage.getItem(LS) || '{}') || {}; }catch(e){ return {}; } }
-function lsWrite(){ try{ localStorage.setItem(LS, JSON.stringify({ideas, current, pending:[...pendingSync]}, (k,v) => k.charAt(0) === '_' ? undefined : v)); }catch(e){} }
+function lsWrite(){ try{ localStorage.setItem(LS, JSON.stringify({ideas, current, pending:[...pendingSync], deleting:[...pendingDelete]}, (k,v) => k.charAt(0) === '_' ? undefined : v)); }catch(e){} }
 
 async function resetApplication(){
   const confirmed = window.confirm('Isso vai apagar todas as ideias e imagens deste navegador/aplicativo e da sincronização. Essa ação não pode ser desfeita. Continuar?');
@@ -79,6 +80,7 @@ async function resetApplication(){
   const s = lsRead();
   ideas = s.ideas || {};
   (s.pending || []).forEach(id => pendingSync.add(id));
+  (s.deleting || []).forEach(id => pendingDelete.add(id));
   current = s.current && ideas[s.current] ? s.current : null;
   renderList(); renderMain();
 })();
@@ -109,13 +111,31 @@ async function removeIdea(id){
   const gone = ideas[id];
   if(gone) gone.blocos.forEach(b => { if(b.tipo === 'imagem' && b.asset) dropAsset(b.asset); });
   if(undo && undo.ideaId === id){ undo = null; $('#toast').classList.remove('show'); }
-  delete ideas[id]; pendingSync.delete(id); clearTimeout(timers[id]);
+  delete ideas[id]; pendingSync.delete(id); pendingDelete.add(id); clearTimeout(timers[id]);
   if(current === id){
     const rest = sorted();
     current = rest[0] ? rest[0].id : null;
   }
   lsWrite(); renderList(); renderMain();
-  if(db){ try{ await db.collection('ideias').doc(id).delete(); }catch(e){} }
+  if(db){
+    try{
+      await db.collection('ideias').doc(id).delete();
+      pendingDelete.delete(id); lsWrite();
+    }catch(e){ setTimeout(() => removeRemoteIdea(id, 0), 1200); }
+  } else {
+    pendingDelete.delete(id); lsWrite();
+  }
+}
+
+async function removeRemoteIdea(id, attempt){
+  if(!db || !pendingDelete.has(id)) return;
+  try{
+    await db.collection('ideias').doc(id).delete();
+    pendingDelete.delete(id); lsWrite();
+  }catch(e){
+    if(attempt < 4) setTimeout(() => removeRemoteIdea(id, attempt + 1), 1200 * (attempt + 1));
+    else { pendingDelete.delete(id); lsWrite(); }
+  }
 }
 
 (async function connect(){
@@ -130,6 +150,7 @@ async function removeIdea(id){
       snap.docs.forEach(d => { if(d.exists){ const v = d.data(); if(v) remote[d.id] = clone(v); } });
       let changedCurrent = false;
       Object.keys(remote).forEach(id => {
+        if(pendingDelete.has(id)) return;
         const r = remote[id], l = ideas[id];
         if(!l || (r.atualizadaEm || 0) > (l.atualizadaEm || 0)){
           if(id === current && l && timers[id]) return;
@@ -226,7 +247,7 @@ function renderMain(){
         </div>
         <div class="about-footer"><div><span class="eyebrow">CRIADOR</span><h2>Marcos Dev</h2><p>Desenvolvido por <strong>Marcos Dev</strong> para organizar ideias com mais clareza.</p></div><a class="github-link" href="https://github.com/marcos-scox/organizador-de-ideias" target="_blank" rel="noopener">${ic('link')}Ver projeto no GitHub</a></div>
         <div class="reset-card"><div><strong>Redefinir aplicativo</strong><p>Apaga as ideias, imagens, dados locais e cache deste navegador ou aplicativo. Se a sincronização estiver ativa, remove também os dados sincronizados.</p></div><button class="btn-danger" data-act="reset">Redefinir tudo</button></div>
-        <p class="about-version">Organizador de Ideias · versão 1.4.0 · Licença MIT</p>
+        <p class="about-version">Organizador de Ideias · versão 1.4.1 · Licença MIT</p>
       </section>`;
     return;
   }
