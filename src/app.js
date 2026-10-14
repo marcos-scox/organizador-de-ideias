@@ -40,6 +40,41 @@ const app = $('#app'), main = $('#main'), listEl = $('#list');
 function lsRead(){ try{ return JSON.parse(localStorage.getItem(LS) || '{}') || {}; }catch(e){ return {}; } }
 function lsWrite(){ try{ localStorage.setItem(LS, JSON.stringify({ideas, current, pending:[...pendingSync]}, (k,v) => k.charAt(0) === '_' ? undefined : v)); }catch(e){} }
 
+async function resetApplication(){
+  const confirmed = window.confirm('Isso vai apagar todas as ideias e imagens deste navegador/aplicativo e da sincronização. Essa ação não pode ser desfeita. Continuar?');
+  if(!confirmed) return;
+  try{
+    const localIdeas = Object.values(ideas);
+    const remote = db && db.collection('ideias');
+    if(remote){
+      try{
+        const snap = await remote.get();
+        const docs = snap && Array.isArray(snap.docs) ? snap.docs : [];
+        await Promise.all(docs.map(d => d && d.id ? remote.doc(d.id).delete() : null));
+      }catch(e){
+        await Promise.all(localIdeas.map(it => remote.doc(it.id).delete().catch(() => null)));
+      }
+    }
+    if(assetsApi){
+      await Promise.all(localIdeas.flatMap(it => (it.blocos || []).filter(b => b.asset).map(b => assetsApi.delete(b.asset).catch(() => null))));
+    }
+    localStorage.clear();
+    sessionStorage.clear();
+    if(window.caches){
+      const keys = await caches.keys();
+      await Promise.all(keys.map(key => caches.delete(key)));
+    }
+    if(navigator.serviceWorker){
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map(reg => reg.unregister()));
+    }
+    ideas = {}; current = null; pendingSync.clear(); view = 'ideas';
+    window.location.reload();
+  }catch(e){
+    window.alert('Não foi possível concluir o reset. Tente novamente.');
+  }
+}
+
 (function boot(){
   const s = lsRead();
   ideas = s.ideas || {};
@@ -190,7 +225,8 @@ function renderMain(){
           <article class="about-card"><span class="about-icon">${ic('work')}</span><h2>Plataforma aberta</h2><p>O projeto é desenvolvido com tecnologias web e empacotado para Android, mantendo o código disponível para a comunidade.</p></article>
         </div>
         <div class="about-footer"><div><span class="eyebrow">CRIADOR</span><h2>Marcos Dev</h2><p>Desenvolvido por <strong>Marcos Dev</strong> para organizar ideias com mais clareza.</p></div><a class="github-link" href="https://github.com/marcos-scox/organizador-de-ideias" target="_blank" rel="noopener">${ic('link')}Ver projeto no GitHub</a></div>
-        <p class="about-version">Organizador de Ideias · versão 1.3.0 · Licença MIT</p>
+        <div class="reset-card"><div><strong>Redefinir aplicativo</strong><p>Apaga as ideias, imagens, dados locais e cache deste navegador ou aplicativo. Se a sincronização estiver ativa, remove também os dados sincronizados.</p></div><button class="btn-danger" data-act="reset">Redefinir tudo</button></div>
+        <p class="about-version">Organizador de Ideias · versão 1.4.0 · Licença MIT</p>
       </section>`;
     return;
   }
@@ -345,6 +381,7 @@ main.addEventListener('click', e => {
   if(t.dataset.act === 'menu'){ app.classList.add('nav'); return; }
   if(t.dataset.act === 'about'){ view = 'about'; app.classList.remove('nav'); renderMain(); return; }
   if(t.dataset.act === 'back'){ view = 'ideas'; renderMain(); return; }
+  if(t.dataset.act === 'reset'){ resetApplication(); return; }
   if(t.dataset.act === 'new'){ newIdea(); return; }
   if(!it) return;
   if(t.dataset.act === 'del'){ askDelete(it.id); return; }

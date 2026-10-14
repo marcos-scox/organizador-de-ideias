@@ -184,6 +184,10 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stro
 .github-link{display:inline-flex;align-items:center;gap:8px;padding:10px 13px;border:1px solid var(--line-2);border-radius:8px;color:var(--acc-tx);font-size:13px;white-space:nowrap}
 .github-link:hover{background:var(--acc-soft);border-color:rgba(227,176,75,.4)}
 .about-version{color:var(--tx-3);font-size:12px;margin:18px 0 0}
+.reset-card{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:20px;padding:16px;border:1px solid rgba(214,92,92,.35);border-radius:12px;background:rgba(214,92,92,.06)}
+.reset-card strong{display:block;font-size:14px;color:var(--tx)}
+.reset-card p{max-width:620px;margin:5px 0 0;color:var(--tx-2);font-size:13px;line-height:1.55}
+.reset-card .btn-danger{flex:none}
 
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .modal-bg.open{display:flex}
@@ -243,6 +247,7 @@ svg.i{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stro
   .about-hero h1{font-size:25px}
   .about-grid{grid-template-columns:1fr;gap:8px;padding:20px 0}
   .about-footer{align-items:flex-start;flex-direction:column}
+  .reset-card{align-items:stretch;flex-direction:column}
 }
 @media (max-width:420px){
   .side{width:86vw;max-width:320px}
