@@ -191,7 +191,7 @@ function renderMain(){
           <article class="about-card"><span class="about-icon">${ic('work')}</span><h2>Plataforma aberta</h2><p>O projeto é desenvolvido com tecnologias web e empacotado para Android, mantendo o código disponível para a comunidade.</p></article>
         </div>
         <div class="about-footer"><div><span class="eyebrow">CRIADOR</span><h2>Marcos Dev</h2><p>Desenvolvido por <strong>Marcos Dev</strong> para organizar ideias com mais clareza.</p></div><a class="github-link" href="https://github.com/marcos-scox/organizador-de-ideias" target="_blank" rel="noopener">${ic('link')}Ver projeto no GitHub</a></div>
-        <p class="about-version">Organizador de Ideias · versão 1.0.9 · Licença MIT</p>
+        <p class="about-version">Organizador de Ideias · versão 1.1.0 · Licença MIT</p>
       </section>`;
     return;
   }
@@ -383,12 +383,40 @@ async function preparePdfImages(root){
     await waitFrame();
   }
 }
+async function choosePdfDestination(filename){
+  if(typeof window.showDirectoryPicker === 'function'){
+    return {kind:'directory', handle: await window.showDirectoryPicker({mode:'readwrite'})};
+  }
+  if(typeof window.showSaveFilePicker === 'function'){
+    return {kind:'file', handle: await window.showSaveFilePicker({
+      suggestedName: filename,
+      types: [{description:'Documento PDF', accept:{'application/pdf':['.pdf']}}]
+    })};
+  }
+  return null;
+}
+async function savePdfToDestination(blob, filename, destination){
+  if(!destination) return false;
+  if(destination.kind === 'file'){
+    const writable = await destination.handle.createWritable();
+    await writable.write(blob); await writable.close();
+  } else {
+    const file = await destination.handle.getFileHandle(filename, {create:true});
+    const writable = await file.createWritable();
+    await writable.write(blob); await writable.close();
+  }
+  return true;
+}
 
 async function downloadIdeaPdf(){
   const it = cur(), source = main.querySelector('.doc');
   if(pdfBusy || !it || !source || typeof window.html2pdf !== 'function') return;
   pdfBusy = true;
   const clean = String(it.titulo || 'ideia').trim().replace(/[^a-z0-9áéíóúãõçêà-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'ideia';
+  const filename = `organizador-de-ideias-${clean}.pdf`;
+  let destination = null;
+  try { destination = await choosePdfDestination(filename); }
+  catch(err){ pdfBusy = false; return; }
   const clone = source.cloneNode(true);
   clone.classList.add('pdf-document');
   clone.querySelectorAll('.block-tools,.adder,.fc-bar,.head-x,.mini,.add-row').forEach(el => el.remove());
@@ -405,7 +433,7 @@ async function downloadIdeaPdf(){
   document.body.appendChild(holder);
   const options = {
     margin: [10, 10, 10, 10],
-    filename: `organizador-de-ideias-${clean}.pdf`,
+    filename,
     image: {type: 'jpeg', quality: 0.96},
     html2canvas: {scale: 2, backgroundColor: '#0E0F11', useCORS: true, logging: false},
     jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}
@@ -420,7 +448,9 @@ async function downloadIdeaPdf(){
     const blob = await window.html2pdf().set({...options, html2canvas: {...options.html2canvas, scale: 1, imageTimeout: 5000, allowTaint: false}}).from(holder).outputPdf('blob');
     if(!(blob instanceof Blob) || !blob.size) throw new Error('PDF vazio');
     const file = new File([blob], options.filename, {type:'application/pdf'});
-    if(navigator.share && navigator.canShare && blob.size < 8 * 1024 * 1024 && navigator.canShare({files:[file]})){
+    if(await savePdfToDestination(blob, options.filename, destination)){
+      // O arquivo já foi gravado pelo seletor de destino.
+    } else if(navigator.share && navigator.canShare && blob.size < 8 * 1024 * 1024 && navigator.canShare({files:[file]})){
       await navigator.share({title:'Organizador de Ideias', text:'Ideia exportada em PDF', files:[file]});
     } else {
       const url = URL.createObjectURL(blob);
