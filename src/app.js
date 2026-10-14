@@ -191,7 +191,7 @@ function renderMain(){
           <article class="about-card"><span class="about-icon">${ic('work')}</span><h2>Plataforma aberta</h2><p>O projeto é desenvolvido com tecnologias web e empacotado para Android, mantendo o código disponível para a comunidade.</p></article>
         </div>
         <div class="about-footer"><div><span class="eyebrow">CRIADOR</span><h2>Marcos Dev</h2><p>Desenvolvido por <strong>Marcos Dev</strong> para organizar ideias com mais clareza.</p></div><a class="github-link" href="https://github.com/marcos-scox/organizador-de-ideias" target="_blank" rel="noopener">${ic('link')}Ver projeto no GitHub</a></div>
-        <p class="about-version">Organizador de Ideias · versão 1.1.0 · Licença MIT</p>
+        <p class="about-version">Organizador de Ideias · versão 1.2.0 · Licença MIT</p>
       </section>`;
     return;
   }
@@ -383,7 +383,23 @@ async function preparePdfImages(root){
     await waitFrame();
   }
 }
+function nativePdfSaver(){
+  return window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PdfSaver;
+}
+function blobToBase64(blob){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 async function choosePdfDestination(filename){
+  const native = nativePdfSaver();
+  if(native && typeof native.pickDirectory === 'function'){
+    const result = await native.pickDirectory({filename});
+    return {kind:'native', uri:result.uri};
+  }
   if(typeof window.showDirectoryPicker === 'function'){
     return {kind:'directory', handle: await window.showDirectoryPicker({mode:'readwrite'})};
   }
@@ -397,6 +413,11 @@ async function choosePdfDestination(filename){
 }
 async function savePdfToDestination(blob, filename, destination){
   if(!destination) return false;
+  if(destination.kind === 'native'){
+    const native = nativePdfSaver();
+    await native.savePdf({directoryUri:destination.uri, filename, base64:await blobToBase64(blob)});
+    return true;
+  }
   if(destination.kind === 'file'){
     const writable = await destination.handle.createWritable();
     await writable.write(blob); await writable.close();
