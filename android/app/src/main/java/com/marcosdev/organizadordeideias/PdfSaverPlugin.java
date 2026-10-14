@@ -10,9 +10,9 @@ import android.util.Base64;
 import androidx.activity.result.ActivityResult;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
+import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.getcapacitor.annotation.PluginMethod;
 import com.getcapacitor.JSObject;
 
 import java.io.OutputStream;
