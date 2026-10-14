@@ -191,7 +191,7 @@ function renderMain(){
           <article class="about-card"><span class="about-icon">${ic('work')}</span><h2>Plataforma aberta</h2><p>O projeto é desenvolvido com tecnologias web e empacotado para Android, mantendo o código disponível para a comunidade.</p></article>
         </div>
         <div class="about-footer"><div><span class="eyebrow">CRIADOR</span><h2>Marcos Dev</h2><p>Desenvolvido por <strong>Marcos Dev</strong> para organizar ideias com mais clareza.</p></div><a class="github-link" href="https://github.com/marcos-scox/organizador-de-ideias" target="_blank" rel="noopener">${ic('link')}Ver projeto no GitHub</a></div>
-        <p class="about-version">Organizador de Ideias · versão 1.2.0 · Licença MIT</p>
+        <p class="about-version">Organizador de Ideias · versão 1.2.2 · Licença MIT</p>
       </section>`;
     return;
   }
@@ -437,7 +437,12 @@ async function downloadIdeaPdf(){
   const filename = `organizador-de-ideias-${clean}.pdf`;
   let destination = null;
   try { destination = await choosePdfDestination(filename); }
-  catch(err){ pdfBusy = false; return; }
+  catch(err){
+    pdfBusy = false;
+    const toast = document.getElementById('toast');
+    if(toast){ document.getElementById('toastText').textContent = 'Escolha uma pasta para salvar o PDF'; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3200); }
+    return;
+  }
   const clone = source.cloneNode(true);
   clone.classList.add('pdf-document');
   clone.querySelectorAll('.block-tools,.adder,.fc-bar,.head-x,.mini,.add-row').forEach(el => el.remove());

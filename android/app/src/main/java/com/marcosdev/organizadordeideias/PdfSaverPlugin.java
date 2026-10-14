@@ -19,7 +19,7 @@ import java.io.OutputStream;
 
 @CapacitorPlugin(name = "PdfSaver")
 public class PdfSaverPlugin extends Plugin {
-    private static final String PICK_DIRECTORY = "pickDirectory";
+    private static final String PICK_DIRECTORY_CALLBACK = "pickDirectoryResult";
 
     @PluginMethod
     public void pickDirectory(PluginCall call) {
@@ -28,7 +28,7 @@ public class PdfSaverPlugin extends Plugin {
                 | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
                 | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
-        startActivityForResult(call, intent, PICK_DIRECTORY);
+        startActivityForResult(call, intent, PICK_DIRECTORY_CALLBACK);
     }
 
     @ActivityCallback
