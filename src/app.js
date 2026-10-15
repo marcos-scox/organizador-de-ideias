@@ -295,11 +295,13 @@ function blockTools(i,n){
 
 function blockHTML(b,i,n){
   let inner = '';
+  b.cores = b.cores || {};
+  const palette = (items) => `<div class="block-colors" aria-label="Cores do bloco">${items.map(([key,label,def]) => `<label title="${label}"><span>${label}</span><input type="color" data-color="${key}" value="${esc(b.cores[key] || def)}" aria-label="Cor: ${label}"></label>`).join('')}</div>`;
   const headX = `<button class="head-x" data-rm aria-label="Remover bloco">${ic('trash')}Remover</button>`;
   if(b.tipo === 'texto'){
-    inner = `<textarea class="txt" data-f="texto" rows="1" placeholder="Escreva sua ideia…">${esc(b.texto)}</textarea>`;
+    inner = `<textarea class="txt" data-f="texto" rows="1" placeholder="Escreva sua ideia…" style="color:${esc(b.cores.texto || '#ECEAE4')};background-color:${esc(b.cores.card || 'transparent')}">${esc(b.texto)}</textarea>`;
   } else if(b.tipo === 'fluxograma'){
-    inner = `<div class="card">
+    inner = `<div class="card" style="--user-card:${esc(b.cores.card||'#1A1C20')}">
       <div class="card-head">${ic('flow')}<input data-f="nome" value="${esc(b.nome)}" placeholder="Fluxograma sem nome"><span class="chip">${b.nos.length} ${b.nos.length===1?'etapa':'etapas'}</span>${headX}</div>
       <div class="fc-bar">
         <button class="tb" data-fc="add" data-shape="caixa">${ic('node')}Etapa</button>
@@ -307,6 +309,7 @@ function blockHTML(b,i,n){
         <button class="tb" data-fc="add" data-shape="inicio">${ic('pill')}Início/fim</button>
         <span class="sep"></span>
         <button class="tb" data-fc="link">${ic('link')}Conectar</button>
+        <span class="sep"></span><button class="tb" data-zoom="out" aria-label="Diminuir zoom">−</button><span class="fc-zoom-label" data-zoom-label>100%</span><button class="tb" data-zoom="in" aria-label="Aumentar zoom">+</button><button class="tb" data-zoom="reset">Ajustar</button>
         <div class="fc-edit" data-fc-edit></div>
       </div>
       <div class="fc-wrap"><svg data-fc-svg viewBox="0 0 800 380"></svg></div>
@@ -314,7 +317,7 @@ function blockHTML(b,i,n){
   } else if(b.tipo === 'workflow'){
     const done = b.etapas.filter(e => e.status === 'feito').length;
     const pct = b.etapas.length ? Math.round(done / b.etapas.length * 100) : 0;
-    inner = `<div class="card">
+    inner = `<div class="card" style="--user-card:${esc(b.cores.card||'#1A1C20')};--user-text:${esc(b.cores.texto||'#ECEAE4')};--user-shape:${esc(b.cores.forma||'#E3B04B')}">
       <div class="card-head">${ic('work')}<input data-f="nome" value="${esc(b.nome)}" placeholder="Workflow sem nome"><span class="chip">${done}/${b.etapas.length} feitas</span>${headX}</div>
       <div class="progress"><i style="width:${pct}%"></i></div>
       <ol class="steps">${b.etapas.map((e,k) => `
@@ -328,7 +331,7 @@ function blockHTML(b,i,n){
     </div>`;
   } else if(b.tipo === 'checklist'){
     const done = b.itens.filter(e => e.feito).length;
-    inner = `<div class="card">
+    inner = `<div class="card" style="--user-card:${esc(b.cores.card||'#1A1C20')};--user-text:${esc(b.cores.texto||'#ECEAE4')};--user-shape:${esc(b.cores.forma||'#E3B04B')}">
       <div class="card-head">${ic('list')}<input data-f="nome" value="${esc(b.nome)}" placeholder="Checklist sem nome"><span class="chip">${done}/${b.itens.length}</span>${headX}</div>
       <ul class="checks">${b.itens.map((e,k) => `
         <li class="check ${e.feito?'on':''}" data-k="${k}">
@@ -348,7 +351,8 @@ function blockHTML(b,i,n){
     else body = `<div class="img-drop" data-drop tabindex="0" role="button"><div class="bulb">${ic('img')}</div>Escolha uma imagem ou arraste para cá<small>Você também pode colar com Ctrl+V</small>${up && up !== 'enviando' ? `<span class="img-err">${esc(up)}</span>` : ''}</div>`;
     inner = `<div class="card"><div class="card-head">${ic('img')}<span style="flex:1;color:var(--tx);font-weight:500">Imagem</span>${src ? `<button class="head-x" data-reimg>${ic('refresh')}Trocar</button>` : ''}${headX}</div>${body}</div>`;
   }
-  return `<section class="block" data-b="${b.id}">${blockTools(i,n)}${inner}</section>`;
+  const colors = b.tipo === 'fluxograma' ? palette([['texto','Texto','#ECEAE4'],['forma','Formas','#343941'],['card','Card','#1A1C20']]) : b.tipo === 'workflow' || b.tipo === 'checklist' ? palette([['texto','Texto','#ECEAE4'],['forma','Destaque','#E3B04B'],['card','Card','#1A1C20']]) : b.tipo === 'texto' ? palette([['texto','Texto','#ECEAE4'],['card','Fundo','#0E0F11']]) : '';
+  return `<section class="block" data-b="${b.id}">${blockTools(i,n)}${inner}${colors}</section>`;
 }
 
 function autosize(t){ t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
@@ -373,6 +377,16 @@ main.addEventListener('input', e => {
   if(t.tagName === 'TEXTAREA') autosize(t);
   const b = blk(t); if(!b) return;
   if(t.dataset.f){ b[t.dataset.f] = t.value; touch(it.id); return; }
+  if(t.dataset.color){
+    b.cores = b.cores || {}; b.cores[t.dataset.color] = t.value;
+    const section = main.querySelector(`[data-b="${b.id}"]`);
+    const card = section && section.querySelector('.card');
+    if(t.dataset.color === 'texto' && b.tipo === 'texto') section.querySelector('.txt').style.color = t.value;
+    if(t.dataset.color === 'card' && b.tipo === 'texto') section.querySelector('.txt').style.backgroundColor = t.value;
+    if(card) card.style.setProperty(t.dataset.color === 'forma' ? '--user-shape' : `--user-${t.dataset.color}`, t.value);
+    if(b.tipo === 'fluxograma') drawFlow(b);
+    touch(it.id); return;
+  }
   if(t.hasAttribute('data-step')){ b.etapas[+t.closest('[data-k]').dataset.k].texto = t.value; touch(it.id); return; }
   if(t.hasAttribute('data-item')){ b.itens[+t.closest('[data-k]').dataset.k].texto = t.value; touch(it.id); return; }
   if(t.hasAttribute('data-fc-label')){ const n = b.nos.find(x => x.id === b._sel); if(n){ n.texto = t.value; drawFlow(b); touch(it.id); } }
@@ -444,14 +458,14 @@ main.addEventListener('click', e => {
     const n = b.nos.length;
     const last = b.nos[n-1];
     const node = { id:uid(), forma:shape, texto: shape === 'decisao' ? 'Decisão' : shape === 'inicio' ? (n ? 'Fim' : 'Início') : 'Nova etapa',
-      x: last ? Math.min(last.x + 190, 700) : 110, y: last ? (last.x + 190 > 700 ? Math.min(last.y + 110, 320) : last.y) : 70 };
-    if(last && last.x + 190 > 700) node.x = 110;
+      x: last ? last.x + 190 : 110, y: last ? last.y : 70 };
     b.nos.push(node);
     if(last) b.arestas.push({ id:uid(), de:last.id, para:node.id });
     b._sel = node.id; b._selE = null;
     touch(it.id); rerenderBlock(b); focusLabel(b); return;
   }
   if(t.dataset.fc === 'link'){ b._link = !b._link; b._src = null; drawFlow(b); return; }
+  if(t.dataset.zoom){ b.zoom = b.zoom || 1; b.zoom = t.dataset.zoom === 'reset' ? 1 : Math.max(.35, Math.min(2.5, b.zoom + (t.dataset.zoom === 'in' ? .15 : -.15))); drawFlow(b); return; }
   if(t.dataset.fc === 'delnode'){
     b.nos = b.nos.filter(x => x.id !== b._sel); b.arestas = b.arestas.filter(a => a.de !== b._sel && a.para !== b._sel);
     b._sel = null; touch(it.id); rerenderBlock(b); return;
@@ -590,8 +604,11 @@ function edgePoint(n, tx, ty){
 function drawFlow(b){
   const sec = main.querySelector(`[data-b="${b.id}"]`); if(!sec) return;
   const svg = sec.querySelector('[data-fc-svg]'); if(!svg) return;
-  const maxY = b.nos.reduce((m,n) => Math.max(m, n.y + 60), 380);
-  svg.setAttribute('viewBox', `0 0 800 ${Math.max(380, maxY + 20)}`);
+  const bounds = b.nos.reduce((m,n) => { const z=nodeSize(n); return {x:Math.max(m.x,n.x+z.w/2+50),y:Math.max(m.y,n.y+z.h/2+50)}; }, {x:800,y:380});
+  const canvasW=Math.max(800,bounds.x), canvasH=Math.max(380,bounds.y), zoom=b.zoom||1;
+  svg.setAttribute('viewBox', `0 0 ${canvasW} ${canvasH}`);
+  svg.style.width=`${canvasW*zoom}px`; svg.style.height=`${canvasH*zoom}px`;
+  svg.style.setProperty('--user-text',b.cores?.texto||''); svg.style.setProperty('--user-shape',b.cores?.forma||'');
   const byId = Object.fromEntries(b.nos.map(n => [n.id, n]));
   let out = `<defs><marker id="ah-${b.id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 9 5 1 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>`;
   b.arestas.forEach(a => {
@@ -612,6 +629,7 @@ function drawFlow(b){
   if(!b.nos.length) out += `<text class="fc-empty" x="400" y="190" text-anchor="middle">Adicione a primeira etapa pela barra acima</text>`;
   svg.innerHTML = out;
 
+  const zoomLabel=sec.querySelector('[data-zoom-label]'); if(zoomLabel) zoomLabel.textContent=`${Math.round(zoom*100)}%`;
   const bar = sec.querySelector('[data-fc="link"]'); if(bar) bar.classList.toggle('on', !!b._link);
   const ed = sec.querySelector('[data-fc-edit]');
   const sel = b.nos.find(x => x.id === b._sel);
@@ -657,7 +675,7 @@ main.addEventListener('pointermove', ev => {
   if(!drag || ev.pointerId !== drag.pid) return;
   const p = svgPt(drag.svg, ev);
   const {w,h} = nodeSize(drag.n);
-  drag.n.x = Math.round(Math.max(w/2 + 4, Math.min(800 - w/2 - 4, p.x - drag.ox)));
+  drag.n.x = Math.round(Math.max(w/2 + 4, p.x - drag.ox));
   drag.n.y = Math.round(Math.max(h/2 + 4, p.y - drag.oy));
   drag.moved = true; drawFlow(drag.b);
 });
