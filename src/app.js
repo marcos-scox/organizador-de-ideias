@@ -377,6 +377,11 @@ main.addEventListener('input', e => {
   if(t.tagName === 'TEXTAREA') autosize(t);
   const b = blk(t); if(!b) return;
   if(t.dataset.f){ b[t.dataset.f] = t.value; touch(it.id); return; }
+  if(t.dataset.nodeColor){
+    const node = b.nos.find(x => x.id === b._sel); if(!node) return;
+    node[t.dataset.nodeColor === 'forma' ? 'cor' : 'corTexto'] = t.value;
+    drawFlow(b); touch(it.id); return;
+  }
   if(t.dataset.color){
     b.cores = b.cores || {}; b.cores[t.dataset.color] = t.value;
     const section = main.querySelector(`[data-b="${b.id}"]`);
@@ -455,13 +460,12 @@ main.addEventListener('click', e => {
 
   if(t.dataset.fc === 'add'){
     const shape = t.dataset.shape;
-    const n = b.nos.length;
-    const last = b.nos[n-1];
-    const node = { id:uid(), forma:shape, texto: shape === 'decisao' ? 'Decisão' : shape === 'inicio' ? (n ? 'Fim' : 'Início') : 'Nova etapa',
+    const last = b.nos.find(x => x.id === b.ultimoClicado) || b.nos[b.nos.length-1];
+    const node = { id:uid(), forma:shape, texto: shape === 'decisao' ? 'Decisão' : shape === 'inicio' ? (b.nos.length ? 'Fim' : 'Início') : 'Nova etapa',
       x: last ? last.x + 190 : 110, y: last ? last.y : 70 };
     b.nos.push(node);
     if(last) b.arestas.push({ id:uid(), de:last.id, para:node.id });
-    b._sel = node.id; b._selE = null;
+    b._sel = node.id; b.ultimoClicado = node.id; b._selE = null;
     touch(it.id); rerenderBlock(b); focusLabel(b); return;
   }
   if(t.dataset.fc === 'link'){ b._link = !b._link; b._src = null; drawFlow(b); return; }
@@ -624,7 +628,7 @@ function drawFlow(b){
     let shape = '';
     if(n.forma === 'decisao') shape = `<polygon points="${n.x},${n.y-h/2} ${n.x+w/2},${n.y} ${n.x},${n.y+h/2} ${n.x-w/2},${n.y}"/>`;
     else shape = `<rect x="${n.x-w/2}" y="${n.y-h/2}" width="${w}" height="${h}" rx="${n.forma==='inicio'?h/2:8}"/>`;
-    out += `<g class="${cls}" data-node="${n.id}">${shape}<text x="${n.x}" y="${n.y}" text-anchor="middle" dominant-baseline="central">${esc(n.texto || '…')}</text></g>`;
+    out += `<g class="${cls}" data-node="${n.id}" style="--node-fill:${esc(n.cor || b.cores?.forma || '#343941')};--node-text:${esc(n.corTexto || b.cores?.texto || '#ECEAE4')}">${shape}<text x="${n.x}" y="${n.y}" text-anchor="middle" dominant-baseline="central">${esc(n.texto || '…')}</text></g>`;
   });
   if(!b.nos.length) out += `<text class="fc-empty" x="400" y="190" text-anchor="middle">Adicione a primeira etapa pela barra acima</text>`;
   svg.innerHTML = out;
@@ -633,13 +637,15 @@ function drawFlow(b){
   const bar = sec.querySelector('[data-fc="link"]'); if(bar) bar.classList.toggle('on', !!b._link);
   const ed = sec.querySelector('[data-fc-edit]');
   const sel = b.nos.find(x => x.id === b._sel);
-  const active = document.activeElement && document.activeElement.hasAttribute && document.activeElement.hasAttribute('data-fc-label') && sec.contains(document.activeElement);
+  const active = document.activeElement && document.activeElement.hasAttribute && (document.activeElement.hasAttribute('data-fc-label') || document.activeElement.hasAttribute('data-node-color')) && sec.contains(document.activeElement);
   if(active && sel) return;
   if(b._link){
     ed.innerHTML = `<span class="fc-hint">${b._src ? 'Agora clique na etapa de destino' : 'Clique na etapa de origem'}</span>`;
   } else if(sel){
     ed.innerHTML = `<input data-fc-label value="${esc(sel.texto)}" placeholder="Texto da etapa" aria-label="Texto da etapa">
-      <button class="tb" data-fc="shape" title="Trocar forma">${ic(sel.forma==='decisao'?'diamond':sel.forma==='inicio'?'pill':'node')}Forma</button>
+      <label class="node-color" title="Cor desta forma">Forma<input type="color" data-node-color="forma" value="${esc(sel.cor || b.cores?.forma || '#343941')}" aria-label="Cor desta forma"></label>
+      <label class="node-color" title="Cor do texto desta forma">Texto<input type="color" data-node-color="texto" value="${esc(sel.corTexto || b.cores?.texto || '#ECEAE4')}" aria-label="Cor do texto desta forma"></label>
+      <button class="tb" data-fc="shape" title="Trocar tipo de forma">${ic(sel.forma==='decisao'?'diamond':sel.forma==='inicio'?'pill':'node')}Tipo</button>
       <button class="tb x" data-fc="delnode">${ic('trash')}Remover</button>`;
   } else if(b._selE){
     ed.innerHTML = `<span class="fc-hint">Conexão selecionada</span><button class="tb x" data-fc="deledge">${ic('trash')}Remover conexão</button>`;
@@ -665,7 +671,7 @@ main.addEventListener('pointerdown', ev => {
     const n = b.nos.find(x => x.id === g.dataset.node); const p = svgPt(svg, ev);
     drag = { b, n, svg, ox: p.x - n.x, oy: p.y - n.y, moved:false, pid: ev.pointerId };
     svg.setPointerCapture(ev.pointerId);
-    b._sel = n.id; b._selE = null; drawFlow(b);
+    b._sel = n.id; b.ultimoClicado = n.id; b._selE = null; drawFlow(b);
     ev.preventDefault(); return;
   }
   if(eg){ b._selE = eg.dataset.edge; b._sel = null; drawFlow(b); return; }
