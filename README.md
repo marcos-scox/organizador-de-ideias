@@ -7,9 +7,11 @@ Aplicativo para capturar, desenvolver e organizar ideias em um só lugar. Cada i
 - **Código-fonte:** https://github.com/marcos-scox/organizador-de-ideias
 - **Site online:** https://marcos-scox.github.io/organizador-de-ideias/
 
-Na página da versão mais recente, baixe o arquivo `app-debug.apk`. No Android, autorize a instalação de aplicativos baixados da fonte escolhida e abra o APK para instalar.
+No Android, autorize a instalação de aplicativos baixados da fonte escolhida e abra o APK para instalar.
 
-> O APK é gerado automaticamente pelo GitHub Actions a cada versão marcada no formato `v1.0.0`. Também é possível baixar o APK gerado na aba **Actions**, em **Artifacts**, para cada execução manual.
+**Download direto do APK mais recente:** [Baixar para Android](https://github.com/marcos-scox/organizador-de-ideias/releases/latest/download/app-debug.apk)
+
+O link acima inicia o download do arquivo APK diretamente, sem abrir a página da versão. Os APKs são publicados como ativos das Releases do GitHub.
 
 ## Funcionalidades
 
@@ -34,7 +36,7 @@ O projeto é mantido por [Marcos Dev](https://github.com/marcos-scox) e está di
 
 ### No Android
 
-1. Baixe o [APK mais recente](https://github.com/marcos-scox/organizador-de-ideias/releases/latest).
+1. Baixe o [APK mais recente — download direto](https://github.com/marcos-scox/organizador-de-ideias/releases/latest/download/app-debug.apk).
 2. Instale o aplicativo no celular.
 3. Toque em **Nova ideia**.
 4. Dê um nome à ideia e escreva o conteúdo.
