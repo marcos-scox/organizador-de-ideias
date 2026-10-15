@@ -188,6 +188,7 @@ async function removeRemoteIdea(id, attempt){
 function sorted(){ return Object.values(ideas).sort((a,b) => (b.atualizadaEm||0) - (a.atualizadaEm||0)); }
 
 function newIdea(){
+  view = 'ideas';
   const id = uid(), now = Date.now();
   ideas[id] = { id, titulo:'', criadaEm:now, atualizadaEm:now, blocos:[{ id:uid(), tipo:'texto', texto:'' }] };
   current = id; touch(id, true);
