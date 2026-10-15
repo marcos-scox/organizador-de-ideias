@@ -231,6 +231,15 @@ function fmt(ts){
   return d.toLocaleDateString('pt-BR', {day:'2-digit', month:'short', year:'numeric'}) + ' às ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
 }
 
+function downloadPdf(){
+  const it = cur(); if(!it) return;
+  const previousTitle = document.title;
+  const safeTitle = (it.titulo || 'Ideia').replace(/[\\/:*?"<>|]+/g,' ').trim();
+  document.title = `${safeTitle || 'Ideia'}.pdf`;
+  window.print();
+  setTimeout(() => { document.title = previousTitle; }, 1000);
+}
+
 function renderMain(){
   if(view === 'about'){
     main.innerHTML = `
@@ -247,7 +256,7 @@ function renderMain(){
         </div>
         <div class="about-footer"><div><span class="eyebrow">CRIADOR</span><h2>Marcos Dev</h2><p>Desenvolvido por <strong>Marcos Dev</strong> para organizar ideias com mais clareza.</p></div><a class="github-link" href="https://github.com/marcos-scox/organizador-de-ideias" target="_blank" rel="noopener">${ic('link')}Ver projeto no GitHub</a></div>
         <div class="reset-card"><div><strong>Redefinir aplicativo</strong><p>Apaga as ideias, imagens, dados locais e cache deste navegador ou aplicativo. Se a sincronização estiver ativa, remove também os dados sincronizados.</p></div><button class="btn-danger" data-act="reset">Redefinir tudo</button></div>
-        <p class="about-version">Organizador de Ideias · versão 1.4.1 · Licença MIT</p>
+        <p class="about-version">Organizador de Ideias · versão 1.4.2 · Licença MIT</p>
       </section>`;
     return;
   }
@@ -267,6 +276,7 @@ function renderMain(){
     <div class="topbar" id="topbar">
       <button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button><img class="topbar-logo" src="assets/logo-lampada.png" alt="Logo do Organizador de Ideias">
       <span class="save-state ok" id="saveState">Salvo</span>
+      <button class="ghost pdf-button" data-act="pdf" title="Imprimir ou salvar esta ideia em PDF">${ic('img')}Baixar PDF</button>
       <button class="ghost danger" data-act="del">${ic('trash')}Apagar ideia</button>
     </div>
     <div class="doc">
@@ -307,6 +317,9 @@ function blockHTML(b,i,n){
         <button class="tb" data-fc="add" data-shape="caixa">${ic('node')}Etapa</button>
         <button class="tb" data-fc="add" data-shape="decisao">${ic('diamond')}Decisão</button>
         <button class="tb" data-fc="add" data-shape="inicio">${ic('pill')}Início/fim</button>
+        <button class="tb" data-fc="add" data-shape="paralelogramo">Paralelogramo</button>
+        <button class="tb" data-fc="add" data-shape="hexagono">Hexágono</button>
+        <button class="tb" data-fc="add" data-shape="circulo">Círculo</button>
         <span class="sep"></span>
         <button class="tb" data-fc="link">${ic('link')}Conectar</button>
         <span class="sep"></span><button class="tb" data-zoom="out" aria-label="Diminuir zoom">−</button><span class="fc-zoom-label" data-zoom-label>100%</span><button class="tb" data-zoom="in" aria-label="Aumentar zoom">+</button><button class="tb" data-zoom="reset">Ajustar</button>
@@ -352,7 +365,7 @@ function blockHTML(b,i,n){
     inner = `<div class="card"><div class="card-head">${ic('img')}<span style="flex:1;color:var(--tx);font-weight:500">Imagem</span>${src ? `<button class="head-x" data-reimg>${ic('refresh')}Trocar</button>` : ''}${headX}</div>${body}</div>`;
   }
   const colors = b.tipo === 'fluxograma' ? palette([['texto','Texto','#ECEAE4'],['forma','Formas','#343941'],['card','Card','#1A1C20']]) : b.tipo === 'workflow' || b.tipo === 'checklist' ? palette([['texto','Texto','#ECEAE4'],['forma','Destaque','#E3B04B'],['card','Card','#1A1C20']]) : b.tipo === 'texto' ? palette([['texto','Texto','#ECEAE4'],['card','Fundo','#0E0F11']]) : '';
-  return `<section class="block" data-b="${b.id}">${blockTools(i,n)}${inner}${colors}</section>`;
+  return `<section class="block ${b.tipo === 'fluxograma' ? 'block-flow' : ''}" data-b="${b.id}">${blockTools(i,n)}${inner}${colors}</section>`;
 }
 
 function autosize(t){ t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
@@ -380,6 +393,13 @@ main.addEventListener('input', e => {
   if(t.dataset.nodeColor){
     const node = b.nos.find(x => x.id === b._sel); if(!node) return;
     node[t.dataset.nodeColor === 'forma' ? 'cor' : 'corTexto'] = t.value;
+    drawFlow(b); touch(it.id); return;
+  }
+  if(t.dataset.nodeSize){
+    const node = b.nos.find(x => x.id === b._sel); if(!node) return;
+    const key = t.dataset.nodeSize === 'largura' ? 'largura' : 'altura';
+    node[key] = +t.value;
+    const output = t.parentElement.querySelector('output'); if(output) output.value = t.value;
     drawFlow(b); touch(it.id); return;
   }
   if(t.dataset.color){
@@ -423,6 +443,7 @@ main.addEventListener('click', e => {
   if(t.dataset.act === 'back'){ view = 'ideas'; renderMain(); return; }
   if(t.dataset.act === 'reset'){ resetApplication(); return; }
   if(t.dataset.act === 'new'){ newIdea(); return; }
+  if(t.dataset.act === 'pdf'){ downloadPdf(); return; }
   if(!it) return;
   if(t.dataset.act === 'del'){ askDelete(it.id); return; }
   if(t.dataset.add){
@@ -470,6 +491,13 @@ main.addEventListener('click', e => {
   }
   if(t.dataset.fc === 'link'){ b._link = !b._link; b._src = null; drawFlow(b); return; }
   if(t.dataset.zoom){ b.zoom = b.zoom || 1; b.zoom = t.dataset.zoom === 'reset' ? 1 : Math.max(.35, Math.min(2.5, b.zoom + (t.dataset.zoom === 'in' ? .15 : -.15))); drawFlow(b); return; }
+  if(t.dataset.fc === 'duplicate'){
+    const original = b.nos.find(x => x.id === b._sel); if(!original) return;
+    const copy = {...original,id:uid(),x:original.x+190,y:original.y+80,texto:(original.texto||'Forma')+' (cópia)'};
+    b.nos.push(copy); b.arestas.push({id:uid(),de:original.id,para:copy.id});
+    b._sel=copy.id; b.ultimoClicado=copy.id; b._selE=null;
+    touch(it.id); rerenderBlock(b); focusLabel(b); return;
+  }
   if(t.dataset.fc === 'delnode'){
     b.nos = b.nos.filter(x => x.id !== b._sel); b.arestas = b.arestas.filter(a => a.de !== b._sel && a.para !== b._sel);
     b._sel = null; touch(it.id); rerenderBlock(b); return;
@@ -477,7 +505,8 @@ main.addEventListener('click', e => {
   if(t.dataset.fc === 'deledge'){ b.arestas = b.arestas.filter(a => a.id !== b._selE); b._selE = null; touch(it.id); drawFlow(b); return; }
   if(t.dataset.fc === 'shape'){
     const n = b.nos.find(x => x.id === b._sel); if(!n) return;
-    n.forma = n.forma === 'caixa' ? 'decisao' : n.forma === 'decisao' ? 'inicio' : 'caixa';
+    const forms=['caixa','decisao','inicio','paralelogramo','hexagono','circulo'];
+    n.forma=forms[(forms.indexOf(n.forma)+1)%forms.length];
     touch(it.id); drawFlow(b); return;
   }
 });
@@ -596,10 +625,17 @@ function focusLabel(b){
 }
 
 const W = 150, H = 50;
-function nodeSize(n){ const w = Math.max(n.forma === 'decisao' ? 150 : 120, Math.min(260, (n.texto||'').length * 7.4 + 40)); return { w, h: n.forma === 'decisao' ? 70 : H }; }
+function nodeSize(n){
+  const baseW=n.forma==='decisao'?150:n.forma==='circulo'?90:n.forma==='paralelogramo'||n.forma==='hexagono'?150:120;
+  const w=Math.max(60,Math.min(420,n.largura||Math.max(baseW,Math.min(260,(n.texto||'').length*7.4+40))));
+  const baseH=n.forma==='decisao'?70:n.forma==='circulo'?90:H;
+  const h=Math.max(40,Math.min(260,n.altura||baseH));
+  return {w,h};
+}
 function edgePoint(n, tx, ty){
   const {w,h} = nodeSize(n), dx = tx - n.x, dy = ty - n.y;
   if(!dx && !dy) return {x:n.x, y:n.y};
+  if(n.forma === 'circulo'){ const t=1/Math.sqrt((dx/(w/2))**2+(dy/(h/2))**2); return {x:n.x+dx*t,y:n.y+dy*t}; }
   if(n.forma === 'decisao'){ const s = 1 / (Math.abs(dx)/(w/2) + Math.abs(dy)/(h/2)); return {x:n.x + dx*s, y:n.y + dy*s}; }
   const s = Math.min((w/2)/Math.abs(dx || 1e-6), (h/2)/Math.abs(dy || 1e-6));
   return {x:n.x + dx*s, y:n.y + dy*s};
@@ -627,6 +663,9 @@ function drawFlow(b){
     const cls = `fc-node ${n.forma==='inicio'?'start':''} ${b._sel===n.id?'sel':''} ${b._src===n.id?'src':''}`;
     let shape = '';
     if(n.forma === 'decisao') shape = `<polygon points="${n.x},${n.y-h/2} ${n.x+w/2},${n.y} ${n.x},${n.y+h/2} ${n.x-w/2},${n.y}"/>`;
+    else if(n.forma === 'paralelogramo') shape = `<polygon points="${n.x-w/2+Math.min(24,w*.18)},${n.y-h/2} ${n.x+w/2},${n.y-h/2} ${n.x+w/2-Math.min(24,w*.18)},${n.y+h/2} ${n.x-w/2},${n.y+h/2}"/>`;
+    else if(n.forma === 'hexagono') { const inset=Math.min(24,w*.22); shape=`<polygon points="${n.x-w/2+inset},${n.y-h/2} ${n.x+w/2-inset},${n.y-h/2} ${n.x+w/2},${n.y} ${n.x+w/2-inset},${n.y+h/2} ${n.x-w/2+inset},${n.y+h/2} ${n.x-w/2},${n.y}"/>`; }
+    else if(n.forma === 'circulo') shape = `<ellipse cx="${n.x}" cy="${n.y}" rx="${w/2}" ry="${h/2}"/>`;
     else shape = `<rect x="${n.x-w/2}" y="${n.y-h/2}" width="${w}" height="${h}" rx="${n.forma==='inicio'?h/2:8}"/>`;
     out += `<g class="${cls}" data-node="${n.id}" style="--node-fill:${esc(n.cor || b.cores?.forma || '#343941')};--node-text:${esc(n.corTexto || b.cores?.texto || '#ECEAE4')}">${shape}<text x="${n.x}" y="${n.y}" text-anchor="middle" dominant-baseline="central">${esc(n.texto || '…')}</text></g>`;
   });
@@ -637,14 +676,18 @@ function drawFlow(b){
   const bar = sec.querySelector('[data-fc="link"]'); if(bar) bar.classList.toggle('on', !!b._link);
   const ed = sec.querySelector('[data-fc-edit]');
   const sel = b.nos.find(x => x.id === b._sel);
-  const active = document.activeElement && document.activeElement.hasAttribute && (document.activeElement.hasAttribute('data-fc-label') || document.activeElement.hasAttribute('data-node-color')) && sec.contains(document.activeElement);
+  const active = document.activeElement && document.activeElement.hasAttribute && (document.activeElement.hasAttribute('data-fc-label') || document.activeElement.hasAttribute('data-node-color') || document.activeElement.hasAttribute('data-node-size')) && sec.contains(document.activeElement);
   if(active && sel) return;
   if(b._link){
     ed.innerHTML = `<span class="fc-hint">${b._src ? 'Agora clique na etapa de destino' : 'Clique na etapa de origem'}</span>`;
   } else if(sel){
+    const size=nodeSize(sel);
     ed.innerHTML = `<input data-fc-label value="${esc(sel.texto)}" placeholder="Texto da etapa" aria-label="Texto da etapa">
       <label class="node-color" title="Cor desta forma">Forma<input type="color" data-node-color="forma" value="${esc(sel.cor || b.cores?.forma || '#343941')}" aria-label="Cor desta forma"></label>
       <label class="node-color" title="Cor do texto desta forma">Texto<input type="color" data-node-color="texto" value="${esc(sel.corTexto || b.cores?.texto || '#ECEAE4')}" aria-label="Cor do texto desta forma"></label>
+      <label class="node-size" title="Largura da forma">Largura <input type="range" data-node-size="largura" min="60" max="420" step="10" value="${size.w}"><output>${size.w}</output></label>
+      <label class="node-size" title="Altura da forma">Altura <input type="range" data-node-size="altura" min="40" max="260" step="10" value="${size.h}"><output>${size.h}</output></label>
+      <button class="tb" data-fc="duplicate" title="Duplicar forma">Duplicar</button>
       <button class="tb" data-fc="shape" title="Trocar tipo de forma">${ic(sel.forma==='decisao'?'diamond':sel.forma==='inicio'?'pill':'node')}Tipo</button>
       <button class="tb x" data-fc="delnode">${ic('trash')}Remover</button>`;
   } else if(b._selE){
@@ -663,9 +706,9 @@ main.addEventListener('pointerdown', ev => {
   if(b._link){
     if(!g) return;
     const id = g.dataset.node;
-    if(!b._src){ b._src = id; drawFlow(b); return; }
+    if(!b._src){ b._src = id; b.ultimoClicado = id; drawFlow(b); return; }
     if(b._src !== id && !b.arestas.some(a => a.de === b._src && a.para === id)){ b.arestas.push({id:uid(), de:b._src, para:id}); touch(cur().id); }
-    b._src = null; b._link = false; drawFlow(b); return;
+    b.ultimoClicado = id; b._src = null; b._link = false; drawFlow(b); return;
   }
   if(g){
     const n = b.nos.find(x => x.id === g.dataset.node); const p = svgPt(svg, ev);
