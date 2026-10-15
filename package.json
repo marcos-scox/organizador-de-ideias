@@ -1,10 +1,10 @@
 {
   "name": "organizador-de-ideias",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "private": true,
   "description": "Aplicativo para capturar e organizar ideias.",
   "scripts": {
-    "prepare:web": "rm -rf www && mkdir -p www/src www/assets && cp index.html www/index.html && cp src/* www/src/ && cp assets/logo-lampada.png www/assets/logo-lampada.png",
+    "prepare:web": "rm -rf www && mkdir -p www/src www/assets && cp index.html www/index.html && cp src/* www/src/ && cp assets/logo-lampada.png assets/fflate.js www/assets/",
     "android:add": "npm run prepare:web && cap add android",
     "android:sync": "npm run prepare:web && cap sync android",
     "android:open": "cap open android",
@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
-    "@capacitor/core": "^7.4.3"
+    "@capacitor/core": "^7.4.3",
+    "fflate": "^0.8.3"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.3"

@@ -17,19 +17,29 @@ const I = {
   diamond:'<path d="M12 3 21 12 12 21 3 12Z"/>',
   pill:'<rect x="3" y="8" width="18" height="8" rx="4"/>',
   link:'<path d="M5 12h11M13 8l4 4-4 4"/>',
-  img:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5-5 4 4 3-3 4 4"/>'
+  img:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5-5 4 4 3-3 4 4"/>',
+  folder:'<path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  archive:'<path d="M4 7h16v13H4zM3 4h18v3H3zM10 11h4"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
+  moon:'<path d="M20.9 13A8 8 0 0 1 11 3.1 8 8 0 1 0 20.9 13Z"/>'
 };
 const ic = (n,c='i') => `<svg class="${c}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone = o => JSON.parse(JSON.stringify(o, (k,v) => k.charAt(0) === '_' ? undefined : v));
 const LS = 'ideias.v1';
+const PREFS = 'ideias.settings.v1';
+const DEFAULT_SETTINGS = {theme:'dark',reduceMotion:false,autoBackup:false,backupFrequency:'daily',keepBackups:10,lastBackupAt:0,backupTreeUri:'',backupFolderName:''};
+function readSettings(){ try{return {...DEFAULT_SETTINGS,...JSON.parse(localStorage.getItem(PREFS)||'{}')};}catch(e){return {...DEFAULT_SETTINGS};} }
 
 let ideas = {};
 let current = null;
 let view = 'ideas';
 let db = null;
 let assetsApi = null;
+let settings = readSettings();
+let backupFolderHandle = null;
+let autoBackupTimer = null;
 const uploading = {};
 const MAXLIST = 30;
 const pendingSync = new Set();
@@ -77,12 +87,14 @@ async function resetApplication(){
 }
 
 (function boot(){
+  applySettings();
   const s = lsRead();
   ideas = s.ideas || {};
   (s.pending || []).forEach(id => pendingSync.add(id));
   (s.deleting || []).forEach(id => pendingDelete.add(id));
   current = s.current && ideas[s.current] ? s.current : null;
   renderList(); renderMain();
+  loadBackupLocation().then(() => maybeAutomaticBackup());
 })();
 
 function setSave(st){
@@ -96,6 +108,7 @@ function touch(id, immediate){
   const it = ideas[id]; if(!it) return;
   it.atualizadaEm = Date.now();
   lsWrite(); setSave('saving');
+  scheduleAutomaticBackup();
   clearTimeout(timers[id]);
   timers[id] = setTimeout(() => push(id), immediate ? 0 : 700);
   renderList();
@@ -167,7 +180,7 @@ async function removeRemoteIdea(id, attempt){
       }
       if(!current){ const s = sorted(); current = s[0] ? s[0].id : null; changedCurrent = true; }
       lsWrite(); renderList();
-      if(changedCurrent && !main.contains(document.activeElement)) renderMain();
+      if(changedCurrent && view === 'ideas' && !main.contains(document.activeElement)) renderMain();
     }, () => {});
   }catch(e){ db = null; }
 })();
@@ -206,6 +219,7 @@ listEl.addEventListener('keydown', e => { if(e.key === 'Enter' && e.target.class
 $('#q').addEventListener('input', renderList);
 $('#newBtn').addEventListener('click', newIdea);
 $('#scrim').addEventListener('click', () => app.classList.remove('nav'));
+$('#settingsBtn').addEventListener('click',()=>{view='settings';app.classList.remove('nav');renderMain();});
 document.addEventListener('click', e => {
   const about = e.target.closest('[data-act="about"]');
   if(about){ view = 'about'; app.classList.remove('nav'); renderMain(); }
@@ -231,6 +245,188 @@ function fmt(ts){
   return d.toLocaleDateString('pt-BR', {day:'2-digit', month:'short', year:'numeric'}) + ' às ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
 }
 
+function applySettings(){
+  const root=document.documentElement;
+  root.dataset.theme=settings.theme==='light'?'light':'dark';
+  root.classList.toggle('reduce-motion',!!settings.reduceMotion);
+}
+function saveSettings(){
+  settings.keepBackups=Math.max(1,Math.min(50,Number(settings.keepBackups)||10));
+  try{localStorage.setItem(PREFS,JSON.stringify(settings));}catch(e){}
+  applySettings();
+}
+function backupPlugin(){return window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.BackupFolder||null;}
+function openFolderDb(){
+  return new Promise((resolve,reject)=>{
+    if(!window.indexedDB){resolve(null);return;}
+    const req=indexedDB.open('ideias-backup-handles',1);
+    req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('handles'))req.result.createObjectStore('handles');};
+    req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+  });
+}
+async function storeFolderHandle(handle){
+  const idb=await openFolderDb();if(!idb)return;
+  await new Promise((resolve,reject)=>{const tx=idb.transaction('handles','readwrite');tx.objectStore('handles').put(handle,'backup-folder');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});idb.close();
+}
+async function loadFolderHandle(){
+  const idb=await openFolderDb();if(!idb)return null;
+  const handle=await new Promise((resolve,reject)=>{const tx=idb.transaction('handles','readonly'),req=tx.objectStore('handles').get('backup-folder');req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);});idb.close();return handle;
+}
+async function loadBackupLocation(){
+  try{if(!backupPlugin()&&window.showDirectoryPicker)backupFolderHandle=await loadFolderHandle();}catch(e){}
+  if(backupFolderHandle&&backupFolderHandle.name){settings.backupFolderName=backupFolderHandle.name;saveSettings();}
+  if(view==='settings')updateSettingsUI();
+}
+async function chooseBackupFolder(){
+  try{
+    const plugin=backupPlugin();
+    if(plugin&&plugin.pickFolder){
+      const r=await plugin.pickFolder();settings.backupTreeUri=r.uri;settings.backupFolderName=r.name||'Pasta selecionada';saveSettings();await updateSettingsUI();return true;
+    }
+    if(window.showDirectoryPicker){
+      const h=await window.showDirectoryPicker({id:'ideias-backups',mode:'readwrite'});
+      if(h.requestPermission&&(await h.requestPermission({mode:'readwrite'}))!=='granted')throw new Error('Acesso de gravação não autorizado.');
+      backupFolderHandle=h;settings.backupTreeUri='';settings.backupFolderName=h.name||'Pasta selecionada';await storeFolderHandle(h);saveSettings();await updateSettingsUI();return true;
+    }
+    window.alert('Este navegador não permite escolher uma pasta diretamente. Use “Baixar ZIP” e escolha onde salvar o arquivo.');
+  }catch(e){if(e&&e.name!=='AbortError')window.alert('Não foi possível acessar essa pasta. Tente selecioná-la novamente.');}
+  return false;
+}
+async function browserFolderPermission(request){
+  if(!backupFolderHandle)return false;
+  try{let p=await backupFolderHandle.queryPermission({mode:'readwrite'});if(p==='granted')return true;if(request&&backupFolderHandle.requestPermission)p=await backupFolderHandle.requestPermission({mode:'readwrite'});return p==='granted';}catch(e){return false;}
+}
+function backupBytes(){
+  if(!window.fflate)throw new Error('Não foi possível carregar a ferramenta de ZIP.');
+  const payload={format:'organizador-de-ideias-backup',formatVersion:1,appVersion:'1.4.3',createdAt:new Date().toISOString(),current,ideas:clone(ideas)};
+  const guide='Backup do Organizador de Ideias\n\nO arquivo backup.json guarda suas ideias, fluxogramas, workflows, checklists, textos e imagens salvas localmente. Imagens mantidas por um serviço de sincronização externo permanecem como referências vinculadas à conta de origem.\n';
+  return window.fflate.zipSync({'backup.json':window.fflate.strToU8(JSON.stringify(payload)),'LEIA-ME.txt':window.fflate.strToU8(guide)},{level:6});
+}
+function backupFilename(){return 'organizador-backup-'+new Date().toISOString().replace(/[:.]/g,'-').replace('T','_').slice(0,19)+'.zip';}
+function downloadBlob(blob,name){
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+async function blobBase64(blob){
+  const bytes=new Uint8Array(await blob.arrayBuffer());let binary='';
+  for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+  return btoa(binary);
+}
+function base64Bytes(text){const binary=atob(text);const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return bytes;}
+async function writeBackupFile(blob,name,automatic){
+  const plugin=backupPlugin();
+  if(plugin&&settings.backupTreeUri){await plugin.writeBackup({treeUri:settings.backupTreeUri,name,data:await blobBase64(blob)});return true;}
+  if(backupFolderHandle){
+    if(!(await browserFolderPermission(!automatic)))return false;
+    const dir=await backupFolderHandle.getDirectoryHandle('backups',{create:true});
+    const handle=await dir.getFileHandle(name,{create:true});const writer=await handle.createWritable();await writer.write(blob);await writer.close();return true;
+  }
+  return false;
+}
+async function backupNow({automatic=false,download=false}={}){
+  try{
+    if(!automatic&&!download&&!settings.backupTreeUri&&!backupFolderHandle){await chooseBackupFolder();}
+    const blob=new Blob([backupBytes()],{type:'application/zip'}),name=backupFilename();
+    let saved=false;
+    if(!download)saved=await writeBackupFile(blob,name,automatic);
+    if(download||!saved){if(automatic)return false;downloadBlob(blob,name);}
+    settings.lastBackupAt=Date.now();saveSettings();
+    if(view==='settings')await updateSettingsUI();
+    if(!automatic&&!download&&!saved&&!window.showDirectoryPicker&&!backupPlugin())window.alert('Backup baixado. Neste navegador, escolha a pasta de destino no gerenciador de arquivos.');
+    return true;
+  }catch(e){if(!automatic)window.alert('Não foi possível criar o backup. Verifique o espaço disponível e tente novamente.');return false;}
+}
+async function listBackupFiles(){
+  const plugin=backupPlugin();
+  if(plugin&&settings.backupTreeUri){const r=await plugin.listBackups({treeUri:settings.backupTreeUri});return (r.files||[]).filter(f=>/\.zip$/i.test(f.name));}
+  if(!backupFolderHandle||!(await browserFolderPermission(false)))return [];
+  try{
+    const dir=await backupFolderHandle.getDirectoryHandle('backups',{create:false}),files=[];
+    for await(const [name,h] of dir.entries()){if(/\.zip$/i.test(name)){const f=await h.getFile();files.push({name,size:f.size,lastModified:f.lastModified});}}
+    return files.sort((a,b)=>(b.lastModified||0)-(a.lastModified||0));
+  }catch(e){return [];}
+}
+async function pruneBackups(){
+  const files=await listBackupFiles(),excess=files.slice(Math.max(1,Math.min(50,+settings.keepBackups||10)));
+  for(const f of excess){try{const p=backupPlugin();if(p&&settings.backupTreeUri)await p.deleteBackup({treeUri:settings.backupTreeUri,name:f.name});else{const d=await backupFolderHandle.getDirectoryHandle('backups');await d.removeEntry(f.name);}}catch(e){}}
+}
+async function maybeAutomaticBackup(){
+  if(!settings.autoBackup)return;
+  const ms={daily:86400000,weekly:604800000,monthly:2592000000}[settings.backupFrequency]||86400000;
+  if(settings.lastBackupAt&&Date.now()-settings.lastBackupAt<ms)return;
+  const p=backupPlugin(),hasLocation=(p&&settings.backupTreeUri)||backupFolderHandle;
+  if(!hasLocation)return;
+  if(backupFolderHandle&&!(await browserFolderPermission(false)))return;
+  await backupNow({automatic:true});
+}
+function scheduleAutomaticBackup(){if(!settings.autoBackup)return;clearTimeout(autoBackupTimer);autoBackupTimer=setTimeout(()=>maybeAutomaticBackup(),3500);}
+async function updateSettingsUI(){
+  const name=document.getElementById('backupFolderName'),status=document.getElementById('backupFolderStatus'),dot=document.getElementById('backupFolderDot');
+  if(!name||!status)return;
+  const plugin=backupPlugin(),hasNative=!!(plugin&&settings.backupTreeUri),hasBrowser=!!backupFolderHandle;
+  name.textContent=hasNative?(settings.backupFolderName||'Pasta Android selecionada'):hasBrowser?(backupFolderHandle.name||settings.backupFolderName):'Nenhuma pasta selecionada';
+  const supported=!!(plugin&&plugin.pickFolder||window.showDirectoryPicker);
+  status.textContent=hasNative?'Pasta Android vinculada com acesso persistente.':hasBrowser?(await browserFolderPermission(false)?'Pasta vinculada; backups salvos em backups/.':'A pasta precisa ser autorizada novamente.'):(supported?'Selecione uma pasta para gravar e listar os backups.':'Seleção direta indisponível neste navegador; use Baixar ZIP.');
+  if(dot)dot.classList.toggle('connected',hasNative||(hasBrowser&&await browserFolderPermission(false)));
+  const help=document.getElementById('backupFolderHelp');if(help&&!supported)help.textContent='O navegador deste dispositivo não oferece acesso direto a pastas. Use Baixar ZIP para escolher um destino; os dados continuam no armazenamento local do aplicativo.';
+  const list=document.getElementById('backupList'),count=document.getElementById('backupListCount');
+  if(list){
+    let files=[];try{files=await listBackupFiles();}catch(e){}
+    if(count)count.textContent=files.length?`(${files.length})`:'';
+    list.innerHTML=files.length?files.map(f=>`<div class="backup-entry"><span class="backup-file">${ic('archive')}<strong title="${esc(f.name)}">${esc(f.name)}</strong></span><span class="backup-size">${formatBytes(f.size||0)}</span><button class="icon-action" data-settings="download-existing" data-name="${esc(f.name)}" title="Baixar backup" aria-label="Baixar backup">${ic('down')}</button><button class="icon-action" data-settings="restore-existing" data-name="${esc(f.name)}" title="Restaurar como cópia" aria-label="Restaurar backup">${ic('refresh')}</button><button class="icon-action danger" data-settings="delete-existing" data-name="${esc(f.name)}" title="Excluir backup" aria-label="Excluir backup">${ic('trash')}</button></div>`).join(''):'<span class="settings-muted">Nenhum arquivo ZIP encontrado nesta pasta.</span>';
+  }
+  const last=document.getElementById('lastBackupText');if(last)last.textContent=settings.lastBackupAt?'Último backup: '+fmt(settings.lastBackupAt):'Nenhum backup automático realizado ainda.';
+  const dark=document.querySelector('[data-theme-pick="dark"]'),light=document.querySelector('[data-theme-pick="light"]');if(dark)dark.classList.toggle('active',settings.theme==='dark');if(light)light.classList.toggle('active',settings.theme==='light');
+  const usage=document.getElementById('storageUsage');if(usage&&navigator.storage&&navigator.storage.estimate){try{const e=await navigator.storage.estimate();usage.textContent=e.usage!=null?`Armazenamento local usado: ${formatBytes(e.usage)}${e.quota?` de ${formatBytes(e.quota)}`:''}`:'';}catch(e){}}
+}
+function formatBytes(n){if(!n)return '0 KB';const u=['B','KB','MB','GB'];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++;}return `${n.toFixed(i?1:0)} ${u[i]}`;}
+async function readBackupBlob(name){
+  const p=backupPlugin();if(p&&settings.backupTreeUri){const r=await p.readBackup({treeUri:settings.backupTreeUri,name});return new Blob([base64Bytes(r.data)],{type:'application/zip'});}
+  const dir=await backupFolderHandle.getDirectoryHandle('backups'),h=await dir.getFileHandle(name);return await h.getFile();
+}
+async function restoreBackupFile(file){
+  try{
+    if(file.size>100*1024*1024)throw new Error('O ZIP excede o limite de 100 MB.');
+    const files=window.fflate.unzipSync(new Uint8Array(await file.arrayBuffer())),raw=files['backup.json'];if(!raw)throw new Error('ZIP sem arquivo backup.json.');
+    const data=JSON.parse(window.fflate.strFromU8(raw));
+    if(data.format!=='organizador-de-ideias-backup'||data.formatVersion!==1||!data.ideas||typeof data.ideas!=='object')throw new Error('Este arquivo não é um backup compatível.');
+    const entries=Object.values(data.ideas).filter(x=>x&&Array.isArray(x.blocos));if(!entries.length)throw new Error('O backup não contém ideias válidas.');
+    if(!window.confirm(`O backup contém ${entries.length} ideia(s). Vou importá-las como cópias, sem apagar as ideias atuais. Continuar?`))return;
+    const imported=[];
+    for(const source of entries){const copy=clone(source),id=uid(),now=Date.now();copy.id=id;copy.titulo=(copy.titulo||'Sem título')+' (restaurada)';copy.criadaEm=now;copy.atualizadaEm=now;ideas[id]=copy;pendingSync.add(id);imported.push(id);}
+    current=imported[0]||current;lsWrite();renderList();if(view!=='settings')renderMain();for(const id of imported)push(id);scheduleAutomaticBackup();
+    window.alert(`Importação concluída: ${imported.length} ideia(s) adicionada(s). As ideias existentes foram preservadas.`);
+  }catch(e){window.alert(e&&e.message?e.message:'Não foi possível ler esse backup ZIP.');}
+}
+async function handleSettingsAction(action,name){
+  if(action==='choose-folder'){await chooseBackupFolder();return;}
+  if(action==='refresh-folder'){await updateSettingsUI();return;}
+  if(action==='backup-now'){await backupNow();await pruneBackups();if(view==='settings')await updateSettingsUI();return;}
+  if(action==='download-backup'){await backupNow({download:true});return;}
+  if(action==='import-backup'){const f=document.getElementById('backupPick');f.value='';f.click();return;}
+  if(action==='share-backup'){
+    const blob=new Blob([backupBytes()],{type:'application/zip'}),file=new File([blob],backupFilename(),{type:'application/zip'});
+    try{if(navigator.share&&(!navigator.canShare||navigator.canShare({files:[file]}))){await navigator.share({files:[file],title:'Backup do Organizador de Ideias'});return;}}catch(e){if(e&&e.name==='AbortError')return;}
+    downloadBlob(blob,file.name);return;
+  }
+  if(action==='download-existing'){const blob=await readBackupBlob(name);downloadBlob(blob,name);return;}
+  if(action==='restore-existing'){const blob=await readBackupBlob(name);await restoreBackupFile(blob);return;}
+  if(action==='delete-existing'){
+    if(!window.confirm(`Excluir o arquivo “${name}” da pasta de backups?`))return;
+    const p=backupPlugin();if(p&&settings.backupTreeUri)await p.deleteBackup({treeUri:settings.backupTreeUri,name});else{const d=await backupFolderHandle.getDirectoryHandle('backups');await d.removeEntry(name);}await updateSettingsUI();
+  }
+}
+main.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.id==='autoBackupToggle'){
+    if(t.checked&&!settings.backupTreeUri&&!backupFolderHandle){const ok=await chooseBackupFolder();if(!ok)t.checked=false;}
+    settings.autoBackup=t.checked;saveSettings();if(settings.autoBackup)scheduleAutomaticBackup();await updateSettingsUI();return;
+  }
+  if(t.id==='backupFrequency'){settings.backupFrequency=t.value;saveSettings();return;}
+  if(t.id==='keepBackups'){settings.keepBackups=Math.max(1,Math.min(50,+t.value||10));t.value=settings.keepBackups;saveSettings();await pruneBackups();await updateSettingsUI();return;}
+  if(t.id==='reduceMotionToggle'){settings.reduceMotion=t.checked;saveSettings();return;}
+});
+document.getElementById('backupPick').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0];if(f)restoreBackupFile(f);});
+
 function downloadPdf(){
   const it = cur(); if(!it) return;
   const previousTitle = document.title;
@@ -241,6 +437,53 @@ function downloadPdf(){
 }
 
 function renderMain(){
+  if(view === 'settings'){
+    main.innerHTML = `
+      <div class="topbar" id="topbar">
+        <button class="menu-btn" data-act="menu" aria-label="Abrir lista">${ic('menu')}</button><img class="topbar-logo" src="assets/logo-lampada.png" alt="Logo do Organizador de Ideias">
+        <button class="ghost" data-act="back">${ic('down')}Voltar para ideias</button>
+      </div>
+      <section class="settings-page">
+        <div class="settings-heading"><div><span class="eyebrow">SISTEMA</span><h1>Configurações</h1><p>Escolha onde guardar seus backups e ajuste a aparência do aplicativo.</p></div></div>
+        <div class="settings-grid">
+          <article class="settings-card">
+            <header class="settings-card-head">${ic('folder')}<h2>Pasta de dados</h2></header>
+            <div class="settings-card-body">
+              <div class="setting-folder"><div><span class="setting-caption">Pasta selecionada</span><strong id="backupFolderName">Carregando…</strong></div><span class="folder-dot" id="backupFolderDot"></span></div>
+              <div class="setting-actions"><button class="primary" data-settings="choose-folder">${ic('folder')}Selecionar pasta</button><button class="btn-sec" data-settings="refresh-folder">${ic('refresh')}Atualizar</button></div>
+              <p class="settings-help" id="backupFolderHelp">Os backups ZIP serão salvos dentro de <code>backups/</code>. As ideias continuam no armazenamento local do aplicativo.</p>
+              <div class="folder-tree"><span>Organizador de Ideias/</span><span>└── backups/</span><span>　 └── organizador-backup-*.zip</span></div>
+              <div class="settings-status" id="backupFolderStatus" role="status"></div>
+            </div>
+          </article>
+          <article class="settings-card settings-backups">
+            <header class="settings-card-head">${ic('archive')}<h2>Backup e compartilhamento</h2></header>
+            <div class="settings-card-body">
+              <div class="setting-actions backup-actions"><button class="primary" data-settings="backup-now">${ic('archive')}Salvar backup agora</button><button class="btn-sec" data-settings="download-backup">${ic('down')}Baixar ZIP</button><button class="btn-sec" data-settings="import-backup">${ic('up')}Importar ZIP</button><button class="btn-sec" data-settings="share-backup">${ic('link')}Compartilhar</button></div>
+              <p class="settings-help">O arquivo inclui ideias, textos, fluxogramas, workflows, checklists e imagens armazenadas localmente. Referências de imagens sincronizadas permanecem vinculadas à conta original.</p>
+              <div class="auto-backup-box">
+                <label class="setting-check"><input type="checkbox" id="autoBackupToggle" ${settings.autoBackup?'checked':''}><span><strong>Backup automático</strong></span></label>
+                <div class="auto-options"><label>Frequência<select id="backupFrequency"><option value="daily" ${settings.backupFrequency==='daily'?'selected':''}>Uma vez por dia</option><option value="weekly" ${settings.backupFrequency==='weekly'?'selected':''}>Uma vez por semana</option><option value="monthly" ${settings.backupFrequency==='monthly'?'selected':''}>Uma vez por mês</option></select></label><label>Manter últimos<input id="keepBackups" type="number" min="1" max="50" value="${settings.keepBackups}"></label></div>
+                <small id="lastBackupText">${settings.lastBackupAt?'Último backup: '+esc(fmt(settings.lastBackupAt)):'Nenhum backup automático realizado ainda.'}</small>
+                <small class="settings-help">O automático roda quando o aplicativo está aberto e a pasta continua autorizada.</small>
+              </div>
+              <div class="backup-list-wrap"><div class="backup-list-title">Backups na pasta <span id="backupListCount"></span></div><div id="backupList" class="backup-list"><span class="settings-muted">Selecione uma pasta para ver os backups.</span></div></div>
+            </div>
+          </article>
+          <article class="settings-card">
+            <header class="settings-card-head">${ic('sun')}<h2>Aparência</h2></header>
+            <div class="settings-card-body">
+              <div class="theme-options"><button class="theme-option ${settings.theme==='dark'?'active':''}" data-theme-pick="dark">${ic('moon')}Escuro</button><button class="theme-option ${settings.theme==='light'?'active':''}" data-theme-pick="light">${ic('sun')}Claro</button></div>
+              <label class="setting-check motion-check"><input type="checkbox" id="reduceMotionToggle" ${settings.reduceMotion?'checked':''}><span>Reduzir animações</span></label>
+              <p class="settings-help">Ative para reduzir movimentos e transições na interface.</p>
+              <div class="storage-usage" id="storageUsage"></div>
+            </div>
+          </article>
+        </div>
+      </section>`;
+    updateSettingsUI();
+    return;
+  }
   if(view === 'about'){
     main.innerHTML = `
       <div class="topbar" id="topbar">
@@ -256,7 +499,7 @@ function renderMain(){
         </div>
         <div class="about-footer"><div><span class="eyebrow">CRIADOR</span><h2>Marcos Dev</h2><p>Desenvolvido por <strong>Marcos Dev</strong> para organizar ideias com mais clareza.</p></div><a class="github-link" href="https://github.com/marcos-scox/organizador-de-ideias" target="_blank" rel="noopener">${ic('link')}Ver projeto no GitHub</a></div>
         <div class="reset-card"><div><strong>Redefinir aplicativo</strong><p>Apaga as ideias, imagens, dados locais e cache deste navegador ou aplicativo. Se a sincronização estiver ativa, remove também os dados sincronizados.</p></div><button class="btn-danger" data-act="reset">Redefinir tudo</button></div>
-        <p class="about-version">Organizador de Ideias · versão 1.4.2 · Licença MIT</p>
+        <p class="about-version">Organizador de Ideias · versão 1.4.3 · Licença MIT</p>
       </section>`;
     return;
   }
@@ -439,6 +682,9 @@ main.addEventListener('click', e => {
   const t = e.target.closest('button'); if(!t) return;
   const it = cur();
   if(t.dataset.act === 'menu'){ app.classList.add('nav'); return; }
+  if(t.dataset.settings){handleSettingsAction(t.dataset.settings,t.dataset.name);return;}
+  if(t.dataset.themePick){settings.theme=t.dataset.themePick;saveSettings();updateSettingsUI();return;}
+  if(t.dataset.act === 'settings'){view='settings';app.classList.remove('nav');renderMain();return;}
   if(t.dataset.act === 'about'){ view = 'about'; app.classList.remove('nav'); renderMain(); return; }
   if(t.dataset.act === 'back'){ view = 'ideas'; renderMain(); return; }
   if(t.dataset.act === 'reset'){ resetApplication(); return; }
